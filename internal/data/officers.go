@@ -1,0 +1,37 @@
+package data
+
+import (
+	"database/sql"
+	"time"
+
+	"github.com/amari03/test1/internal/validator"
+)
+
+type Officer struct {
+	ID               string     `json:"id"`
+	RegulationNumber *string    `json:"regulation_number,omitempty"`
+	FirstName        string     `json:"first_name"`
+	LastName         string     `json:"last_name"`
+	Sex              string     `json:"sex"`
+	RankCode         string     `json:"rank_code"`
+	RegionID         *string    `json:"region_id,omitempty"`
+	FormationID      *string    `json:"formation_id,omitempty"`
+	PostingID        *string    `json:"posting_id,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	ArchivedAt       *time.Time `json:"archived_at,omitempty"`
+}
+
+type OfficerModel struct {
+	DB *sql.DB
+}
+
+func ValidateOfficer(v *validator.Validator, officer *Officer) {
+	v.Check(officer.FirstName != "", "first_name", "must be provided")
+	v.Check(len(officer.FirstName) <= 100, "first_name", "must not exceed 100 bytes")
+	v.Check(officer.LastName != "", "last_name", "must be provided")
+	v.Check(len(officer.LastName) <= 100, "last_name", "must not exceed 100 bytes")
+	v.Check(officer.Sex != "", "sex", "must be provided")
+	v.Check(validator.In(officer.Sex, "male", "female", "unknown"), "sex", "must be male, female, or unknown")
+	v.Check(officer.RankCode != "", "rank_code", "must be provided")
+}
