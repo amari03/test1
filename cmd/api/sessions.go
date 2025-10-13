@@ -1,1 +1,2 @@
 //HANDLER FOR SESSIONS ENDPOINT
+package main

@@ -35,3 +35,15 @@ func ValidateOfficer(v *validator.Validator, officer *Officer) {
 	v.Check(validator.In(officer.Sex, "male", "female", "unknown"), "sex", "must be male, female, or unknown")
 	v.Check(officer.RankCode != "", "rank_code", "must be provided")
 }
+
+// Insert a new officer record into the database.
+func (m OfficerModel) Insert(officer *Officer) error {
+    query := `
+        INSERT INTO officers (regulation_number, first_name, last_name, sex, rank_code)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, created_at`
+
+    args := []interface{}{&officer.RegulationNumber, &officer.FirstName, &officer.LastName, &officer.Sex, &officer.RankCode}
+
+    return m.DB.QueryRow(query, args...).Scan(&officer.ID, &officer.CreatedAt)
+}
