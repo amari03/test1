@@ -7,6 +7,7 @@ import (
 
 	"github.com/amari03/test1/internal/data"
 	"github.com/amari03/test1/internal/validator"
+    "github.com/julienschmidt/httprouter" 
 )
 
 func (app *application) createOfficerHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +56,23 @@ func (app *application) createOfficerHandler(w http.ResponseWriter, r *http.Requ
 
 // getOfficerHandler will handle GET /v1/officers/:id
 func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement logic to get a specific officer by ID.
-	w.Write([]byte("TODO: Get officer by ID"))
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    // You might want to add UUID validation here later, but for now this is fine.
+
+    officer, err := app.models.Officers.Get(id)
+    if err != nil {
+        // A real app would check if it's a "not found" error vs a server error.
+        // For now, we'll just send a not found for any error.
+        app.notFoundResponse(w, r)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }
 
 // listOfficersHandler will handle GET /v1/officers

@@ -18,7 +18,7 @@ type Officer struct {
 	FormationID      *string    `json:"formation_id,omitempty"`
 	PostingID        *string    `json:"posting_id,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
 	ArchivedAt       *time.Time `json:"archived_at,omitempty"`
 }
 
@@ -38,12 +38,37 @@ func ValidateOfficer(v *validator.Validator, officer *Officer) {
 
 // Insert a new officer record into the database.
 func (m OfficerModel) Insert(officer *Officer) error {
-    query := `
+	query := `
         INSERT INTO officers (regulation_number, first_name, last_name, sex, rank_code)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id, created_at`
 
-    args := []interface{}{&officer.RegulationNumber, &officer.FirstName, &officer.LastName, &officer.Sex, &officer.RankCode}
+	args := []interface{}{officer.RegulationNumber, &officer.FirstName, &officer.LastName, &officer.Sex, &officer.RankCode}
 
-    return m.DB.QueryRow(query, args...).Scan(&officer.ID, &officer.CreatedAt)
+	return m.DB.QueryRow(query, args...).Scan(&officer.ID, &officer.CreatedAt)
+}
+
+// Get a specific officer by ID.
+func (m OfficerModel) Get(id string) (*Officer, error) {
+	query := `
+        SELECT id, regulation_number, first_name, last_name, sex, rank_code, created_at, updated_at
+        FROM officers
+        WHERE id = $1`
+
+	var officer Officer
+	err := m.DB.QueryRow(query, id).Scan(
+		&officer.ID,
+		&officer.RegulationNumber,
+		&officer.FirstName,
+		&officer.LastName,
+		&officer.Sex,
+		&officer.RankCode,
+		&officer.CreatedAt,
+		&officer.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return &officer, nil
 }
