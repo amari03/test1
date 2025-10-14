@@ -157,8 +157,15 @@ func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request
 
 // listOfficersHandler will handle GET /v1/officers
 func (app *application) listOfficersHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement logic to list all officers with filtering and pagination.
-	w.Write([]byte("TODO: List all officers"))
-}
+    officers, err := app.models.Officers.GetAll()
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
 
+    err = app.writeJSON(w, http.StatusOK, envelope{"officers": officers}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
 

@@ -117,3 +117,43 @@ func (m OfficerModel) Delete(id string) error {
 
     return nil
 }
+
+// GetAll returns a slice of all officers.
+func (m OfficerModel) GetAll() ([]*Officer, error) {
+    query := `
+        SELECT id, regulation_number, first_name, last_name, sex, rank_code, created_at, updated_at
+        FROM officers
+        ORDER BY last_name, first_name`
+
+    rows, err := m.DB.Query(query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var officers []*Officer
+
+    for rows.Next() {
+        var officer Officer
+        err := rows.Scan(
+            &officer.ID,
+            &officer.RegulationNumber,
+            &officer.FirstName,
+            &officer.LastName,
+            &officer.Sex,
+            &officer.RankCode,
+            &officer.CreatedAt,
+            &officer.UpdatedAt,
+        )
+        if err != nil {
+            return nil, err
+        }
+        officers = append(officers, &officer)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return officers, nil
+}
