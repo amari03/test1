@@ -92,3 +92,28 @@ func (m OfficerModel) Update(officer *Officer) error {
 
     return m.DB.QueryRow(query, args...).Scan(&officer.UpdatedAt)
 }
+
+// Delete a specific officer by ID.
+func (m OfficerModel) Delete(id string) error {
+    query := `
+        DELETE FROM officers
+        WHERE id = $1`
+
+    result, err := m.DB.Exec(query, id)
+    if err != nil {
+        return err
+    }
+
+    // Check if any rows were actually deleted.
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    // If no rows were affected, it means the ID didn't exist.
+    if rowsAffected == 0 {
+        return ErrRecordNotFound
+    }
+
+    return nil
+}

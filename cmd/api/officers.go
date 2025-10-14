@@ -4,6 +4,7 @@ package main
 import (
 	"net/http"
 	"fmt"
+    "errors"
 
 	"github.com/amari03/test1/internal/data"
 	"github.com/amari03/test1/internal/validator"
@@ -112,6 +113,27 @@ func (app *application) updateOfficerHandler(w http.ResponseWriter, r *http.Requ
     }
 }
 
+func (app *application) deleteOfficerHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    err := app.models.Officers.Delete(id)
+    if err != nil {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"message": "officer successfully deleted"}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
 // getOfficerHandler will handle GET /v1/officers/:id
 func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request) {
     params := httprouter.ParamsFromContext(r.Context())
@@ -138,3 +160,5 @@ func (app *application) listOfficersHandler(w http.ResponseWriter, r *http.Reque
 	// TODO: Implement logic to list all officers with filtering and pagination.
 	w.Write([]byte("TODO: List all officers"))
 }
+
+
