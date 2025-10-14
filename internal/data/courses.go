@@ -96,3 +96,26 @@ func (m CourseModel) Update(course *Course) error {
 
     return m.DB.QueryRow(query, args...).Scan(&course.UpdatedAt)
 }
+
+// Delete a specific course by ID.
+func (m CourseModel) Delete(id string) error {
+    query := `
+        DELETE FROM courses
+        WHERE id = $1`
+
+    result, err := m.DB.Exec(query, id)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    if rowsAffected == 0 {
+        return ErrRecordNotFound
+    }
+
+    return nil
+}

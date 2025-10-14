@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
     "net/http"
+	"errors"
 	"github.com/julienschmidt/httprouter"
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/validator"
@@ -126,6 +127,27 @@ func (app *application) updateCourseHandler(w http.ResponseWriter, r *http.Reque
     }
 
     err = app.writeJSON(w, http.StatusOK, envelope{"course": course}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) deleteCourseHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    err := app.models.Courses.Delete(id)
+    if err != nil {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"message": "course successfully deleted"}, nil)
     if err != nil {
         app.serverErrorResponse(w, r, err)
     }
