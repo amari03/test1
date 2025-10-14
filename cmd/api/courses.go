@@ -75,3 +75,58 @@ func (app *application) getCourseHandler(w http.ResponseWriter, r *http.Request)
         app.serverErrorResponse(w, r, err)
     }
 }
+
+
+func (app *application) updateCourseHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    course, err := app.models.Courses.Get(id)
+    if err != nil {
+        app.notFoundResponse(w, r)
+        return
+    }
+
+    var input struct {
+        Title              *string  `json:"title"`
+        Category           *string  `json:"category"`
+        DefaultCreditHours *float64 `json:"default_credit_hours"`
+        Description        *string  `json:"description"`
+    }
+
+    err = app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
+
+    if input.Title != nil {
+        course.Title = *input.Title
+    }
+    if input.Category != nil {
+        course.Category = *input.Category
+    }
+    if input.DefaultCreditHours != nil {
+        course.DefaultCreditHours = *input.DefaultCreditHours
+    }
+    if input.Description != nil {
+        course.Description = *input.Description
+    }
+
+    v := validator.New()
+    if data.ValidateCourse(v, course); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
+
+    err = app.models.Courses.Update(course)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"course": course}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}

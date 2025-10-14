@@ -77,3 +77,22 @@ func (m CourseModel) Get(id string) (*Course, error) {
     }
     return &course, nil
 }
+
+// Update a specific course record.
+func (m CourseModel) Update(course *Course) error {
+    query := `
+        UPDATE courses
+        SET title = $1, category = $2, default_credit_hours = $3, description = $4, updated_at = NOW()
+        WHERE id = $5
+        RETURNING updated_at`
+
+    args := []interface{}{
+        course.Title,
+        course.Category,
+        course.DefaultCreditHours,
+        course.Description,
+        course.ID,
+    }
+
+    return m.DB.QueryRow(query, args...).Scan(&course.UpdatedAt)
+}
