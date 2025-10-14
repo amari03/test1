@@ -149,7 +149,10 @@ func (app *application) deleteSessionHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *application) listSessionsHandler(w http.ResponseWriter, r *http.Request) {
-    sessions, err := app.models.Sessions.GetAll()
+    qs := r.URL.Query()
+    location := qs.Get("location_text")
+
+    sessions, err := app.models.Sessions.GetAll(location)
     if err != nil {
         app.serverErrorResponse(w, r, err)
         return
