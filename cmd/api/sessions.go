@@ -59,11 +59,12 @@ func (app *application) getSessionHandler(w http.ResponseWriter, r *http.Request
 
     session, err := app.models.Sessions.Get(id)
     if err != nil {
-        if err == data.ErrRecordNotFound {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
             app.notFoundResponse(w, r)
-            return
+        default:
+            app.serverErrorResponse(w, r, err)
         }
-        app.serverErrorResponse(w, r, err)
         return
     }
 
@@ -79,7 +80,12 @@ func (app *application) updateSessionHandler(w http.ResponseWriter, r *http.Requ
 
     session, err := app.models.Sessions.Get(id)
     if err != nil {
-        app.notFoundResponse(w, r)
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -96,18 +102,10 @@ func (app *application) updateSessionHandler(w http.ResponseWriter, r *http.Requ
         return
     }
 
-    if input.CourseID != nil {
-        session.CourseID = *input.CourseID
-    }
-    if input.Start != nil {
-        session.Start = *input.Start
-    }
-    if input.End != nil {
-        session.End = *input.End
-    }
-    if input.Location != nil {
-        session.Location = *input.Location
-    }
+    if input.CourseID != nil { session.CourseID = *input.CourseID }
+    if input.Start != nil { session.Start = *input.Start }
+    if input.End != nil { session.End = *input.End }
+    if input.Location != nil { session.Location = *input.Location }
 
     v := validator.New()
     if data.ValidateSession(v, session); !v.Valid() {
@@ -117,7 +115,12 @@ func (app *application) updateSessionHandler(w http.ResponseWriter, r *http.Requ
 
     err = app.models.Sessions.Update(session)
     if err != nil {
-        app.serverErrorResponse(w, r, err)
+        switch {
+        case errors.Is(err, data.ErrEditConflict):
+            app.editConflictResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -149,17 +152,36 @@ func (app *application) deleteSessionHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *application) listSessionsHandler(w http.ResponseWriter, r *http.Request) {
-    qs := r.URL.Query()
-    location := qs.Get("location_text")
+	var input struct {
+		Location string
+		CourseID string
+		data.Filters
+	}
 
-    sessions, err := app.models.Sessions.GetAll(location)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	v := validator.New()
+	qs := r.URL.Query()
 
-    err = app.writeJSON(w, http.StatusOK, envelope{"sessions": sessions}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	input.Location = app.readString(qs, "location", "")
+	input.CourseID = app.readString(qs, "course_id", "")
+
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "start_datetime") // A sensible default for sessions
+	input.Filters.SortSafelist = []string{"id", "start_datetime", "end_datetime", "location_text", "-id", "-start_datetime", "-end_datetime", "-location_text"}
+
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	sessions, metadata, err := app.models.Sessions.GetAll(input.Location, input.CourseID, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"sessions": sessions, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
