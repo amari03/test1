@@ -54,6 +54,64 @@ func (app *application) createOfficerHandler(w http.ResponseWriter, r *http.Requ
     }
 }
 
+func (app *application) updateOfficerHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    officer, err := app.models.Officers.Get(id)
+    if err != nil {
+        app.notFoundResponse(w, r)
+        return
+    }
+
+    var input struct {
+        RegulationNumber *string `json:"regulation_number"`
+        FirstName        *string `json:"first_name"`
+        LastName         *string `json:"last_name"`
+        Sex              *string `json:"sex"`
+        RankCode         *string `json:"rank_code"`
+    }
+
+    err = app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
+
+    if input.RegulationNumber != nil {
+        officer.RegulationNumber = input.RegulationNumber
+    }
+    if input.FirstName != nil {
+        officer.FirstName = *input.FirstName
+    }
+    if input.LastName != nil {
+        officer.LastName = *input.LastName
+    }
+    if input.Sex != nil {
+        officer.Sex = *input.Sex
+    }
+    if input.RankCode != nil {
+        officer.RankCode = *input.RankCode
+    }
+
+    v := validator.New()
+    if data.ValidateOfficer(v, officer); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
+
+    err = app.models.Officers.Update(officer)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
 // getOfficerHandler will handle GET /v1/officers/:id
 func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request) {
     params := httprouter.ParamsFromContext(r.Context())

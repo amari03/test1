@@ -72,3 +72,23 @@ func (m OfficerModel) Get(id string) (*Officer, error) {
 	}
 	return &officer, nil
 }
+
+// Update a specific officer record.
+func (m OfficerModel) Update(officer *Officer) error {
+    query := `
+        UPDATE officers
+        SET regulation_number = $1, first_name = $2, last_name = $3, sex = $4, rank_code = $5, updated_at = NOW()
+        WHERE id = $6
+        RETURNING updated_at`
+
+    args := []interface{}{
+        officer.RegulationNumber,
+        officer.FirstName,
+        officer.LastName,
+        officer.Sex,
+        officer.RankCode,
+        officer.ID,
+    }
+
+    return m.DB.QueryRow(query, args...).Scan(&officer.UpdatedAt)
+}
