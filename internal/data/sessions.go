@@ -64,3 +64,22 @@ func (m SessionModel) Get(id string) (*Session, error) {
     }
     return &session, nil
 }
+
+// Update a specific session record.
+func (m SessionModel) Update(session *Session) error {
+    query := `
+        UPDATE sessions
+        SET course_id = $1, start_datetime = $2, end_datetime = $3, location_text = $4, updated_at = NOW()
+        WHERE id = $5
+        RETURNING updated_at`
+
+    args := []interface{}{
+        session.CourseID,
+        session.Start,
+        session.End,
+        session.Location,
+        session.ID,
+    }
+
+    return m.DB.QueryRow(query, args...).Scan(&session.UpdatedAt)
+}
