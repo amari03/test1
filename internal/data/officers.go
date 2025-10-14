@@ -118,14 +118,17 @@ func (m OfficerModel) Delete(id string) error {
     return nil
 }
 
-// GetAll returns a slice of all officers.
-func (m OfficerModel) GetAll() ([]*Officer, error) {
+// GetAll returns a slice of all officers, with filtering.
+func (m OfficerModel) GetAll(firstName string, lastName string, rankCode string) ([]*Officer, error) {
     query := `
         SELECT id, regulation_number, first_name, last_name, sex, rank_code, created_at, updated_at
         FROM officers
+        WHERE (LOWER(first_name) = LOWER($1) OR $1 = '')
+        AND (LOWER(last_name) = LOWER($2) OR $2 = '')
+        AND (LOWER(rank_code) = LOWER($3) OR $3 = '')
         ORDER BY last_name, first_name`
 
-    rows, err := m.DB.Query(query)
+    rows, err := m.DB.Query(query, firstName, lastName, rankCode)
     if err != nil {
         return nil, err
     }

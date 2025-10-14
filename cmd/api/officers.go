@@ -155,9 +155,14 @@ func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request
     }
 }
 
-// listOfficersHandler will handle GET /v1/officers
 func (app *application) listOfficersHandler(w http.ResponseWriter, r *http.Request) {
-    officers, err := app.models.Officers.GetAll()
+    // Get query parameters from the URL
+    qs := r.URL.Query()
+    firstName := qs.Get("first_name")
+    lastName := qs.Get("last_name")
+    rankCode := qs.Get("rank_code")
+
+    officers, err := app.models.Officers.GetAll(firstName, lastName, rankCode)
     if err != nil {
         app.serverErrorResponse(w, r, err)
         return
