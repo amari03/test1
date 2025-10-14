@@ -30,3 +30,27 @@ func ValidateFacilitator(v *validator.Validator, facilitator *Facilitator) {
     v.Check(facilitator.FirstName != "", "first_name", "must be provided")
     v.Check(facilitator.LastName != "", "last_name", "must be provided")
 }
+
+// Get a specific facilitator by ID.
+func (m FacilitatorModel) Get(id string) (*Facilitator, error) {
+    query := `
+        SELECT id, first_name, last_name, notes
+        FROM facilitators
+        WHERE id = $1`
+
+    var facilitator Facilitator
+    err := m.DB.QueryRow(query, id).Scan(
+        &facilitator.ID,
+        &facilitator.FirstName,
+        &facilitator.LastName,
+        &facilitator.Notes,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, ErrRecordNotFound
+        }
+        return nil, err
+    }
+    return &facilitator, nil
+}
