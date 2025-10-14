@@ -140,3 +140,16 @@ func (app *application) deleteFacilitatorHandler(w http.ResponseWriter, r *http.
         app.serverErrorResponse(w, r, err)
     }
 }
+
+func (app *application) listFacilitatorsHandler(w http.ResponseWriter, r *http.Request) {
+    facilitators, err := app.models.Facilitators.GetAll()
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"facilitators": facilitators}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}

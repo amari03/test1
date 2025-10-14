@@ -96,3 +96,39 @@ func (m FacilitatorModel) Delete(id string) error {
 
     return nil
 }
+
+// GetAll returns a slice of all facilitators.
+func (m FacilitatorModel) GetAll() ([]*Facilitator, error) {
+    query := `
+        SELECT id, first_name, last_name, notes
+        FROM facilitators
+        ORDER BY last_name, first_name`
+
+    rows, err := m.DB.Query(query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var facilitators []*Facilitator
+
+    for rows.Next() {
+        var facilitator Facilitator
+        err := rows.Scan(
+            &facilitator.ID,
+            &facilitator.FirstName,
+            &facilitator.LastName,
+            &facilitator.Notes,
+        )
+        if err != nil {
+            return nil, err
+        }
+        facilitators = append(facilitators, &facilitator)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return facilitators, nil
+}
