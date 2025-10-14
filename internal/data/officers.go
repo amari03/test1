@@ -3,6 +3,8 @@ package data
 import (
 	"database/sql"
 	"time"
+	"context"
+	"errors"
 
 	"github.com/amari03/test1/internal/validator"
 )
@@ -20,6 +22,7 @@ type Officer struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
 	ArchivedAt       *time.Time `json:"archived_at,omitempty"`
+	Version          int32      `json:"version"`
 }
 
 type OfficerModel struct {
@@ -51,12 +54,18 @@ func (m OfficerModel) Insert(officer *Officer) error {
 // Get a specific officer by ID.
 func (m OfficerModel) Get(id string) (*Officer, error) {
 	query := `
-        SELECT id, regulation_number, first_name, last_name, sex, rank_code, created_at, updated_at
+        SELECT id, regulation_number, first_name, last_name, sex, rank_code,
+               created_at, updated_at, version
         FROM officers
         WHERE id = $1`
 
 	var officer Officer
-	err := m.DB.QueryRow(query, id).Scan(
+	
+    // Use a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&officer.ID,
 		&officer.RegulationNumber,
 		&officer.FirstName,
@@ -65,30 +74,52 @@ func (m OfficerModel) Get(id string) (*Officer, error) {
 		&officer.RankCode,
 		&officer.CreatedAt,
 		&officer.UpdatedAt,
+		&officer.Version, // Scan the version
 	)
 
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound // Use our custom error
+		default:
+			return nil, err
+		}
 	}
 	return &officer, nil
 }
 
 // Update a specific officer record.
 func (m OfficerModel) Update(officer *Officer) error {
-    query := `
+	query := `
         UPDATE officers
-        SET regulation_number = $1, first_name = $2, last_name = $3, sex = $4, rank_code = $5, updated_at = NOW()
-        WHERE id = $6
-        RETURNING updated_at`
+        SET regulation_number = $1, first_name = $2, last_name = $3, sex = $4, rank_code = $5,
+            updated_at = NOW(), version = version + 1
+        WHERE id = $6 AND version = $7
+        RETURNING updated_at, version`
 
-    args := []interface{}{
-        officer.RegulationNumber,
-        officer.FirstName,
-        officer.LastName,
-        officer.Sex,
-        officer.RankCode,
-        officer.ID,
-    }
+	args := []interface{}{
+		officer.RegulationNumber,
+		officer.FirstName,
+		officer.LastName,
+		officer.Sex,
+		officer.RankCode,
+		officer.ID,
+		officer.Version, // Add the version for optimistic locking
+	}
+	
+    // Use a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    return m.DB.QueryRow(query, args...).Scan(&officer.UpdatedAt)
+	// Use QueryRowContext and check for ErrNoRows to detect edit conflicts.
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&officer.UpdatedAt, &officer.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict // Return our custom edit conflict error
+		default:
+			return err
+		}
+	}
+	return nil
 }

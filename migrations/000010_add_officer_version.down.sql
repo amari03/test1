@@ -1,0 +1,1 @@
+ALTER TABLE officers DROP COLUMN version;

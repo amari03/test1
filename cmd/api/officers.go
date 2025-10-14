@@ -4,6 +4,7 @@ package main
 import (
 	"net/http"
 	"fmt"
+    "errors"
 
 	"github.com/amari03/test1/internal/data"
 	"github.com/amari03/test1/internal/validator"
@@ -55,82 +56,99 @@ func (app *application) createOfficerHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *application) updateOfficerHandler(w http.ResponseWriter, r *http.Request) {
-    params := httprouter.ParamsFromContext(r.Context())
-    id := params.ByName("id")
+	params := httprouter.ParamsFromContext(r.Context())
+	id := params.ByName("id")
 
-    officer, err := app.models.Officers.Get(id)
-    if err != nil {
-        app.notFoundResponse(w, r)
-        return
-    }
+	// Fetch the existing record.
+	officer, err := app.models.Officers.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound): // Handle "not found" specifically
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
-    var input struct {
-        RegulationNumber *string `json:"regulation_number"`
-        FirstName        *string `json:"first_name"`
-        LastName         *string `json:"last_name"`
-        Sex              *string `json:"sex"`
-        RankCode         *string `json:"rank_code"`
-    }
+	// This input struct with pointers is perfect for partial updates. No changes needed here.
+	var input struct {
+		RegulationNumber *string `json:"regulation_number"`
+		FirstName        *string `json:"first_name"`
+		LastName         *string `json:"last_name"`
+		Sex              *string `json:"sex"`
+		RankCode         *string `json:"rank_code"`
+	}
 
-    err = app.readJSON(w, r, &input)
-    if err != nil {
-        app.badRequestResponse(w, r, err)
-        return
-    }
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
 
-    if input.RegulationNumber != nil {
-        officer.RegulationNumber = input.RegulationNumber
-    }
-    if input.FirstName != nil {
-        officer.FirstName = *input.FirstName
-    }
-    if input.LastName != nil {
-        officer.LastName = *input.LastName
-    }
-    if input.Sex != nil {
-        officer.Sex = *input.Sex
-    }
-    if input.RankCode != nil {
-        officer.RankCode = *input.RankCode
-    }
+	// Apply the updates from the input struct to the fetched officer record.
+	if input.RegulationNumber != nil {
+		officer.RegulationNumber = input.RegulationNumber
+	}
+	if input.FirstName != nil {
+		officer.FirstName = *input.FirstName
+	}
+	if input.LastName != nil {
+		officer.LastName = *input.LastName
+	}
+	if input.Sex != nil {
+		officer.Sex = *input.Sex
+	}
+	if input.RankCode != nil {
+		officer.RankCode = *input.RankCode
+	}
 
-    v := validator.New()
-    if data.ValidateOfficer(v, officer); !v.Valid() {
-        app.failedValidationResponse(w, r, v.Errors)
-        return
-    }
+	// Re-validate the updated officer record.
+	v := validator.New()
+	if data.ValidateOfficer(v, officer); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
 
-    err = app.models.Officers.Update(officer)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	// Pass the updated officer record to the Update() method.
+	err = app.models.Officers.Update(officer)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict): // Handle edit conflicts specifically
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
-    err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	// Send the updated officer record back to the client.
+	err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // getOfficerHandler will handle GET /v1/officers/:id
 func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request) {
-    params := httprouter.ParamsFromContext(r.Context())
-    id := params.ByName("id")
+	params := httprouter.ParamsFromContext(r.Context())
+	id := params.ByName("id")
 
-    // You might want to add UUID validation here later, but for now this is fine.
+	officer, err := app.models.Officers.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
-    officer, err := app.models.Officers.Get(id)
-    if err != nil {
-        // A real app would check if it's a "not found" error vs a server error.
-        // For now, we'll just send a not found for any error.
-        app.notFoundResponse(w, r)
-        return
-    }
-
-    err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	err = app.writeJSON(w, http.StatusOK, envelope{"officer": officer}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // listOfficersHandler will handle GET /v1/officers
