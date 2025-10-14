@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
     "net/http"
+	"github.com/julienschmidt/httprouter"
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/validator"
 )
@@ -55,6 +56,22 @@ func (app *application) createCourseHandler(w http.ResponseWriter, r *http.Reque
 
 // getCourseHandler will handle GET /v1/courses/:id
 func (app *application) getCourseHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement logic to get a specific course by ID.
-	w.Write([]byte("TODO: Get course by ID"))
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    course, err := app.models.Courses.Get(id)
+    if err != nil {
+        // We can now properly check for the not found error
+        if err == data.ErrRecordNotFound {
+            app.notFoundResponse(w, r)
+            return
+        }
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"course": course}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }

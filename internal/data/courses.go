@@ -15,7 +15,7 @@ type Course struct {
 	Description        string    `json:"description,omitempty"`
 	CreatedByUserID    string    `json:"created_by_user_id"`
 	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	UpdatedAt          *time.Time `json:"updated_at,omitempty"`
 }
 
 type CourseModel struct {
@@ -46,4 +46,34 @@ func (m CourseModel) Insert(course *Course) error {
     }
 
     return m.DB.QueryRow(query, args...).Scan(&course.ID, &course.CreatedAt)
+}
+
+
+// Get a specific course by ID.
+func (m CourseModel) Get(id string) (*Course, error) {
+    query := `
+        SELECT id, title, category, default_credit_hours, description, created_by_user_id, created_at, updated_at
+        FROM courses
+        WHERE id = $1`
+
+    var course Course
+    err := m.DB.QueryRow(query, id).Scan(
+        &course.ID,
+        &course.Title,
+        &course.Category,
+        &course.DefaultCreditHours,
+        &course.Description,
+        &course.CreatedByUserID,
+        &course.CreatedAt,
+        &course.UpdatedAt,
+    )
+
+    if err != nil {
+        // This is how you handle a "not found" error specifically
+        if err == sql.ErrNoRows {
+            return nil, ErrRecordNotFound
+        }
+        return nil, err
+    }
+    return &course, nil
 }
