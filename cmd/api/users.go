@@ -2,71 +2,166 @@
 package main
 
 import (
-	//"errors"
+	"errors"
 	"fmt"
 	"net/http"
+	
 
 	"github.com/amari03/test1/internal/data"
 	"github.com/amari03/test1/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 // createUserHandler handles the creation of a new user.
 func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
-	}
+    var input struct {
+        Email    string `json:"email"`
+        Password string `json:"password"`
+        Role     string `json:"role"`
+    }
 
-	err := app.readJSON(w, r, &input)
-	if err != nil {
-		app.badRequestResponse(w, r, err)
-		return
-	}
+    err := app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
 
-	user := &data.User{
-		Email: input.Email,
-		Role:  input.Role,
-	}
+    user := &data.User{
+        Email: input.Email,
+        // For now, we're just assigning the password directly to the hash field.
+        PasswordHash: input.Password,
+        Role:  input.Role,
+    }
 
-	// TODO: Hash the password before storing it.
-	// For now, we'll skip this for brevity.
+    v := validator.New()
+    if data.ValidateUser(v, user); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
 
-	v := validator.New()
-	if data.ValidateUser(v, user); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
-		return
-	}
+    // This is the part we are now implementing
+    err = app.models.Users.Insert(user)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
 
-	// TODO: Implement the userModel.Insert() method in internal/data/users.go
-	// err = app.models.Users.Insert(user)
-	// if err != nil {
-	// 	app.serverErrorResponse(w, r, err)
-	// 	return
-	// }
+    headers := make(http.Header)
+    headers.Set("Location", fmt.Sprintf("/v1/users/%s", user.ID))
 
-	headers := make(http.Header)
-	headers.Set("Location", fmt.Sprintf("/v1/users/%s", user.ID))
-
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+    err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }
 
-// getUserHandler handles fetching a specific user by ID.
 func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	// For this example, we assume ID is a string (UUID)
-	// You might need to adjust readIDParam if you stick with integer IDs for some models
-	// params := httprouter.ParamsFromContext(r.Context())
-	// id := params.ByName("id")
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
 
-	// For demonstration, let's pretend we have a user.
-	// You would replace this with a call to your data model.
-	// user, err := app.models.Users.Get(id)
-	user := data.User{ID: "some-uuid", Email: "test@example.com", Role: "viewer"} // Dummy data
-	err := app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+    user, err := app.models.Users.Get(id)
+    if err != nil {
+        if err == data.ErrRecordNotFound {
+            app.notFoundResponse(w, r)
+            return
+        }
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    // We don't want to send the password hash back to the client.
+    user.PasswordHash = ""
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    user, err := app.models.Users.Get(id)
+    if err != nil {
+        app.notFoundResponse(w, r)
+        return
+    }
+
+    var input struct {
+        Email *string `json:"email"`
+        Role  *string `json:"role"`
+    }
+
+    err = app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
+
+    if input.Email != nil {
+        user.Email = *input.Email
+    }
+    if input.Role != nil {
+        user.Role = *input.Role
+    }
+
+    v := validator.New()
+    if data.ValidateUser(v, user); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
+
+    err = app.models.Users.Update(user)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+    
+    // We don't want to send the password hash back to the client.
+    user.PasswordHash = ""
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
+        params := httprouter.ParamsFromContext(r.Context())
+        id := params.ByName("id")
+
+        err := app.models.Users.Delete(id)
+        if err != nil {
+            switch {
+            case errors.Is(err, data.ErrRecordNotFound):
+                app.notFoundResponse(w, r)
+            default:
+                app.serverErrorResponse(w, r, err)
+            }
+            return
+        }
+
+        err = app.writeJSON(w, http.StatusOK, envelope{"message": "user successfully deleted"}, nil)
+        if err != nil {
+            app.serverErrorResponse(w, r, err)
+        }
+    }
+
+func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request) {
+    users, err := app.models.Users.GetAll()
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    // We NEVER want to send password hashes to the client.
+    for _, user := range users {
+        user.PasswordHash = ""
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }
