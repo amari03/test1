@@ -1,7 +1,11 @@
 package data
 
 import (
-    "database/sql"
+    "context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
     "github.com/amari03/test1/internal/validator"
 )
 
@@ -10,20 +14,11 @@ type Facilitator struct {
     FirstName string  `json:"first_name"`
     LastName  string  `json:"last_name"`
     Notes     *string `json:"notes,omitempty"`
+    Version   int32   `json:"version"`
 }
 
 type FacilitatorModel struct {
     DB *sql.DB
-}
-
-func (m FacilitatorModel) Insert(facilitator *Facilitator) error {
-    query := `
-        INSERT INTO facilitators (first_name, last_name, notes)
-        VALUES ($1, $2, $3)
-        RETURNING id`
-
-    args := []interface{}{facilitator.FirstName, facilitator.LastName, facilitator.Notes}
-    return m.DB.QueryRow(query, args...).Scan(&facilitator.ID)
 }
 
 func ValidateFacilitator(v *validator.Validator, facilitator *Facilitator) {
@@ -31,104 +26,151 @@ func ValidateFacilitator(v *validator.Validator, facilitator *Facilitator) {
     v.Check(facilitator.LastName != "", "last_name", "must be provided")
 }
 
+func (m FacilitatorModel) Insert(facilitator *Facilitator) error {
+	query := `
+        INSERT INTO facilitators (first_name, last_name, notes)
+        VALUES ($1, $2, $3)
+        RETURNING id, version`
+
+	args := []interface{}{facilitator.FirstName, facilitator.LastName, facilitator.Notes}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&facilitator.ID, &facilitator.Version)
+}
+
 // Get a specific facilitator by ID.
 func (m FacilitatorModel) Get(id string) (*Facilitator, error) {
-    query := `
-        SELECT id, first_name, last_name, notes
+	query := `
+        SELECT id, first_name, last_name, notes, version
         FROM facilitators
         WHERE id = $1`
 
-    var facilitator Facilitator
-    err := m.DB.QueryRow(query, id).Scan(
-        &facilitator.ID,
-        &facilitator.FirstName,
-        &facilitator.LastName,
-        &facilitator.Notes,
-    )
+	var facilitator Facilitator
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, ErrRecordNotFound
-        }
-        return nil, err
-    }
-    return &facilitator, nil
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		&facilitator.ID,
+		&facilitator.FirstName,
+		&facilitator.LastName,
+		&facilitator.Notes,
+		&facilitator.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &facilitator, nil
 }
 
-
-// Update a specific facilitator record.
+// Update a specific facilitator by ID.
 func (m FacilitatorModel) Update(facilitator *Facilitator) error {
-    query := `
+	query := `
         UPDATE facilitators
-        SET first_name = $1, last_name = $2, notes = $3
-        WHERE id = $4`
+        SET first_name = $1, last_name = $2, notes = $3, version = version + 1
+        WHERE id = $4 AND version = $5
+        RETURNING version`
 
-    args := []interface{}{
-        facilitator.FirstName,
-        facilitator.LastName,
-        facilitator.Notes,
-        facilitator.ID,
-    }
+	args := []interface{}{
+		facilitator.FirstName,
+		facilitator.LastName,
+		facilitator.Notes,
+		facilitator.ID,
+		facilitator.Version,
+	}
 
-    _, err := m.DB.Exec(query, args...)
-    return err
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&facilitator.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete a specific facilitator by ID.
 func (m FacilitatorModel) Delete(id string) error {
-    query := `
+	if id == "" {
+		return ErrRecordNotFound
+	}
+	query := `
         DELETE FROM facilitators
         WHERE id = $1`
 
-    result, err := m.DB.Exec(query, id)
-    if err != nil {
-        return err
-    }
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return err
-    }
+	result, err := m.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
 
-    if rowsAffected == 0 {
-        return ErrRecordNotFound
-    }
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
 
-    return nil
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetAll returns a slice of all facilitators.
-func (m FacilitatorModel) GetAll() ([]*Facilitator, error) {
-    query := `
-        SELECT id, first_name, last_name, notes
+func (m FacilitatorModel) GetAll(firstName string, lastName string, filters Filters) ([]*Facilitator, Metadata, error) {
+	query := fmt.Sprintf(`
+        SELECT count(*) OVER(), id, first_name, last_name, notes, version
         FROM facilitators
-        ORDER BY last_name, first_name`
+        WHERE (to_tsvector('simple', first_name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+        AND (to_tsvector('simple', last_name) @@ plainto_tsquery('simple', $2) OR $2 = '')
+        ORDER BY %s %s, id ASC
+        LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
 
-    rows, err := m.DB.Query(query)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    var facilitators []*Facilitator
+	args := []interface{}{firstName, lastName, filters.limit(), filters.offset()}
+	rows, err := m.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var facilitator Facilitator
-        err := rows.Scan(
-            &facilitator.ID,
-            &facilitator.FirstName,
-            &facilitator.LastName,
-            &facilitator.Notes,
-        )
-        if err != nil {
-            return nil, err
-        }
-        facilitators = append(facilitators, &facilitator)
-    }
+	totalRecords := int64(0)
+	facilitators := []*Facilitator{}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	for rows.Next() {
+		var facilitator Facilitator
+		err := rows.Scan(
+			&totalRecords,
+			&facilitator.ID,
+			&facilitator.FirstName,
+			&facilitator.LastName,
+			&facilitator.Notes,
+			&facilitator.Version,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		facilitators = append(facilitators, &facilitator)
+	}
 
-    return facilitators, nil
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	return facilitators, metadata, nil
 }

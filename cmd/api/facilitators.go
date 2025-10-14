@@ -56,11 +56,12 @@ func (app *application) getFacilitatorHandler(w http.ResponseWriter, r *http.Req
 
     facilitator, err := app.models.Facilitators.Get(id)
     if err != nil {
-        if err == data.ErrRecordNotFound {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
             app.notFoundResponse(w, r)
-            return
+        default:
+            app.serverErrorResponse(w, r, err)
         }
-        app.serverErrorResponse(w, r, err)
         return
     }
 
@@ -76,7 +77,12 @@ func (app *application) updateFacilitatorHandler(w http.ResponseWriter, r *http.
 
     facilitator, err := app.models.Facilitators.Get(id)
     if err != nil {
-        app.notFoundResponse(w, r)
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -110,7 +116,12 @@ func (app *application) updateFacilitatorHandler(w http.ResponseWriter, r *http.
 
     err = app.models.Facilitators.Update(facilitator)
     if err != nil {
-        app.serverErrorResponse(w, r, err)
+        switch {
+        case errors.Is(err, data.ErrEditConflict):
+            app.editConflictResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -142,14 +153,36 @@ func (app *application) deleteFacilitatorHandler(w http.ResponseWriter, r *http.
 }
 
 func (app *application) listFacilitatorsHandler(w http.ResponseWriter, r *http.Request) {
-    facilitators, err := app.models.Facilitators.GetAll()
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	var input struct {
+		FirstName string
+		LastName  string
+		data.Filters
+	}
 
-    err = app.writeJSON(w, http.StatusOK, envelope{"facilitators": facilitators}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.FirstName = app.readString(qs, "first_name", "")
+	input.LastName = app.readString(qs, "last_name", "")
+
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortSafelist = []string{"id", "first_name", "last_name", "-id", "-first_name", "-last_name"}
+
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	facilitators, metadata, err := app.models.Facilitators.GetAll(input.FirstName, input.LastName, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"facilitators": facilitators, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
