@@ -2,7 +2,7 @@
 package main
 
 import (
-	//"errors"
+	"errors"
 	"fmt"
 	"net/http"
 	
@@ -126,3 +126,24 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
         app.serverErrorResponse(w, r, err)
     }
 }
+
+func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
+        params := httprouter.ParamsFromContext(r.Context())
+        id := params.ByName("id")
+
+        err := app.models.Users.Delete(id)
+        if err != nil {
+            switch {
+            case errors.Is(err, data.ErrRecordNotFound):
+                app.notFoundResponse(w, r)
+            default:
+                app.serverErrorResponse(w, r, err)
+            }
+            return
+        }
+
+        err = app.writeJSON(w, http.StatusOK, envelope{"message": "user successfully deleted"}, nil)
+        if err != nil {
+            app.serverErrorResponse(w, r, err)
+        }
+    }
