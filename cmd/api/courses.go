@@ -5,12 +5,14 @@ import (
 	"fmt"
     "net/http"
 	"errors"
+
 	"github.com/julienschmidt/httprouter"
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/validator"
 )
 
 // createCourseHandler will handle POST /v1/courses
+// createCourseHandler remains good. Note the hardcoded user ID is for development.
 func (app *application) createCourseHandler(w http.ResponseWriter, r *http.Request) {
     var input struct {
         Title              string  `json:"title"`
@@ -62,12 +64,12 @@ func (app *application) getCourseHandler(w http.ResponseWriter, r *http.Request)
 
     course, err := app.models.Courses.Get(id)
     if err != nil {
-        // We can now properly check for the not found error
-        if err == data.ErrRecordNotFound {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
             app.notFoundResponse(w, r)
-            return
+        default:
+            app.serverErrorResponse(w, r, err)
         }
-        app.serverErrorResponse(w, r, err)
         return
     }
 
@@ -84,7 +86,12 @@ func (app *application) updateCourseHandler(w http.ResponseWriter, r *http.Reque
 
     course, err := app.models.Courses.Get(id)
     if err != nil {
-        app.notFoundResponse(w, r)
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -101,18 +108,10 @@ func (app *application) updateCourseHandler(w http.ResponseWriter, r *http.Reque
         return
     }
 
-    if input.Title != nil {
-        course.Title = *input.Title
-    }
-    if input.Category != nil {
-        course.Category = *input.Category
-    }
-    if input.DefaultCreditHours != nil {
-        course.DefaultCreditHours = *input.DefaultCreditHours
-    }
-    if input.Description != nil {
-        course.Description = *input.Description
-    }
+    if input.Title != nil { course.Title = *input.Title }
+    if input.Category != nil { course.Category = *input.Category }
+    if input.DefaultCreditHours != nil { course.DefaultCreditHours = *input.DefaultCreditHours }
+    if input.Description != nil { course.Description = *input.Description }
 
     v := validator.New()
     if data.ValidateCourse(v, course); !v.Valid() {
@@ -122,7 +121,12 @@ func (app *application) updateCourseHandler(w http.ResponseWriter, r *http.Reque
 
     err = app.models.Courses.Update(course)
     if err != nil {
-        app.serverErrorResponse(w, r, err)
+        switch {
+        case errors.Is(err, data.ErrEditConflict):
+            app.editConflictResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
         return
     }
 
@@ -154,18 +158,38 @@ func (app *application) deleteCourseHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) listCoursesHandler(w http.ResponseWriter, r *http.Request) {
-    qs := r.URL.Query()
-    title := qs.Get("title")
-    category := qs.Get("category")
+	var input struct {
+		Title    string
+		Category string
+		data.Filters
+	}
 
-    courses, err := app.models.Courses.GetAll(title, category)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	v := validator.New()
+	qs := r.URL.Query()
 
-    err = app.writeJSON(w, http.StatusOK, envelope{"courses": courses}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	input.Title = app.readString(qs, "title", "")
+	input.Category = app.readString(qs, "category", "")
+
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+
+	// Define the safelist of fields that can be sorted on.
+	input.Filters.SortSafelist = []string{"id", "title", "category", "default_credit_hours", "-id", "-title", "-category", "-default_credit_hours"}
+
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	courses, metadata, err := app.models.Courses.GetAll(input.Title, input.Category, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"courses": courses, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }

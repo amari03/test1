@@ -1,7 +1,10 @@
 package data
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/amari03/test1/internal/validator"
@@ -16,6 +19,7 @@ type Course struct {
 	CreatedByUserID    string    `json:"created_by_user_id"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          *time.Time `json:"updated_at,omitempty"`
+    Version            int32      `json:"version"`
 }
 
 type CourseModel struct {
@@ -32,124 +36,170 @@ func ValidateCourse(v *validator.Validator, course *Course) {
 
 // Insert a new course record into the database.
 func (m CourseModel) Insert(course *Course) error {
-    query := `
+	query := `
         INSERT INTO courses (title, category, default_credit_hours, description, created_by_user_id)
         VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, created_at`
+        RETURNING id, created_at, version`
 
-    args := []interface{}{
-        course.Title,
-        course.Category,
-        course.DefaultCreditHours,
-        course.Description,
-        course.CreatedByUserID,
-    }
+	args := []interface{}{
+		course.Title,
+		course.Category,
+		course.DefaultCreditHours,
+		course.Description,
+		course.CreatedByUserID,
+	}
 
-    return m.DB.QueryRow(query, args...).Scan(&course.ID, &course.CreatedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&course.ID, &course.CreatedAt, &course.Version)
 }
 
 
 // Get a specific course by ID.
 func (m CourseModel) Get(id string) (*Course, error) {
-    query := `
-        SELECT id, title, category, default_credit_hours, description, created_by_user_id, created_at, updated_at
+	query := `
+        SELECT id, title, category, default_credit_hours, description, created_by_user_id,
+               created_at, updated_at, version
         FROM courses
         WHERE id = $1`
 
-    var course Course
-    err := m.DB.QueryRow(query, id).Scan(
-        &course.ID,
-        &course.Title,
-        &course.Category,
-        &course.DefaultCreditHours,
-        &course.Description,
-        &course.CreatedByUserID,
-        &course.CreatedAt,
-        &course.UpdatedAt,
-    )
+	var course Course
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    if err != nil {
-        // This is how you handle a "not found" error specifically
-        if err == sql.ErrNoRows {
-            return nil, ErrRecordNotFound
-        }
-        return nil, err
-    }
-    return &course, nil
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		&course.ID,
+		&course.Title,
+		&course.Category,
+		&course.DefaultCreditHours,
+		&course.Description,
+		&course.CreatedByUserID,
+		&course.CreatedAt,
+		&course.UpdatedAt,
+		&course.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &course, nil
 }
 
 // Update a specific course record.
 func (m CourseModel) Update(course *Course) error {
-    query := `
+	query := `
         UPDATE courses
-        SET title = $1, category = $2, default_credit_hours = $3, description = $4, updated_at = NOW()
-        WHERE id = $5
-        RETURNING updated_at`
+        SET title = $1, category = $2, default_credit_hours = $3, description = $4,
+            updated_at = NOW(), version = version + 1
+        WHERE id = $5 AND version = $6
+        RETURNING updated_at, version`
 
-    args := []interface{}{
-        course.Title,
-        course.Category,
-        course.DefaultCreditHours,
-        course.Description,
-        course.ID,
-    }
+	args := []interface{}{
+		course.Title,
+		course.Category,
+		course.DefaultCreditHours,
+		course.Description,
+		course.ID,
+		course.Version,
+	}
 
-    return m.DB.QueryRow(query, args...).Scan(&course.UpdatedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&course.UpdatedAt, &course.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete a specific course by ID.
 func (m CourseModel) Delete(id string) error {
-    query := `
+	if id == "" {
+		return ErrRecordNotFound
+	}
+	query := `
         DELETE FROM courses
         WHERE id = $1`
 
-    result, err := m.DB.Exec(query, id)
-    if err != nil {
-        return err
-    }
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return err
-    }
+	result, err := m.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
 
-    if rowsAffected == 0 {
-        return ErrRecordNotFound
-    }
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
 
-    return nil
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetAll returns a slice of all courses, with filtering.
-func (m CourseModel) GetAll(title string, category string) ([]*Course, error) {
-    query := `
-        SELECT id, title, category, default_credit_hours, description, created_by_user_id, created_at, updated_at
+func (m CourseModel) GetAll(title string, category string, filters Filters) ([]*Course, Metadata, error) {
+	query := fmt.Sprintf(`
+        SELECT count(*) OVER(), id, title, category, default_credit_hours, description,
+               created_by_user_id, created_at, updated_at, version
         FROM courses
-        WHERE (LOWER(title) ILIKE '%' || LOWER($1) || '%' OR $1 = '')
+        WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
         AND (LOWER(category) = LOWER($2) OR $2 = '')
-        ORDER BY title`
+        ORDER BY %s %s, id ASC
+        LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
 
-    // Note the new ILIKE for partial title matching!
-    rows, err := m.DB.Query(query, title, category)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    var courses []*Course
-    for rows.Next() {
-        var course Course
-        err := rows.Scan(
-            &course.ID, &course.Title, &course.Category, &course.DefaultCreditHours,
-            &course.Description, &course.CreatedByUserID, &course.CreatedAt, &course.UpdatedAt,
-        )
-        if err != nil {
-            return nil, err
-        }
-        courses = append(courses, &course)
-    }
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
-    return courses, nil
+	args := []interface{}{title, category, filters.limit(), filters.offset()}
+	rows, err := m.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	defer rows.Close()
+
+	totalRecords := int64(0)
+	courses := []*Course{}
+
+	for rows.Next() {
+		var course Course
+		err := rows.Scan(
+			&totalRecords,
+			&course.ID,
+			&course.Title,
+			&course.Category,
+			&course.DefaultCreditHours,
+			&course.Description,
+			&course.CreatedByUserID,
+			&course.CreatedAt,
+			&course.UpdatedAt,
+			&course.Version,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		courses = append(courses, &course)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	return courses, metadata, nil
 }
