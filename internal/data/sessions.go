@@ -37,3 +37,30 @@ func ValidateSession(v *validator.Validator, session *Session) {
     v.Check(!session.End.IsZero(), "end_datetime", "must be provided")
     v.Check(session.End.After(session.Start), "end_datetime", "must be after start_datetime")
 }
+
+// Get a specific session by ID.
+func (m SessionModel) Get(id string) (*Session, error) {
+    query := `
+        SELECT id, course_id, start_datetime, end_datetime, location_text, created_at, updated_at
+        FROM sessions
+        WHERE id = $1`
+
+    var session Session
+    err := m.DB.QueryRow(query, id).Scan(
+        &session.ID,
+        &session.CourseID,
+        &session.Start,
+        &session.End,
+        &session.Location,
+        &session.CreatedAt,
+        &session.UpdatedAt,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, ErrRecordNotFound
+        }
+        return nil, err
+    }
+    return &session, nil
+}

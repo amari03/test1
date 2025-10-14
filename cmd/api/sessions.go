@@ -7,6 +7,7 @@ import (
 
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 func (app *application) createSessionHandler(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +47,26 @@ func (app *application) createSessionHandler(w http.ResponseWriter, r *http.Requ
     headers.Set("Location", fmt.Sprintf("/v1/sessions/%s", session.ID))
 
     err = app.writeJSON(w, http.StatusCreated, envelope{"session": session}, headers)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) getSessionHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    session, err := app.models.Sessions.Get(id)
+    if err != nil {
+        if err == data.ErrRecordNotFound {
+            app.notFoundResponse(w, r)
+            return
+        }
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"session": session}, nil)
     if err != nil {
         app.serverErrorResponse(w, r, err)
     }
