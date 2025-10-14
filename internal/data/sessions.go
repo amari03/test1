@@ -106,3 +106,42 @@ func (m SessionModel) Delete(id string) error {
 
     return nil
 }
+
+// GetAll returns a slice of all sessions.
+func (m SessionModel) GetAll() ([]*Session, error) {
+    query := `
+        SELECT id, course_id, start_datetime, end_datetime, location_text, created_at, updated_at
+        FROM sessions
+        ORDER BY start_datetime DESC`
+
+    rows, err := m.DB.Query(query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var sessions []*Session
+
+    for rows.Next() {
+        var session Session
+        err := rows.Scan(
+            &session.ID,
+            &session.CourseID,
+            &session.Start,
+            &session.End,
+            &session.Location,
+            &session.CreatedAt,
+            &session.UpdatedAt,
+        )
+        if err != nil {
+            return nil, err
+        }
+        sessions = append(sessions, &session)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return sessions, nil
+}

@@ -147,3 +147,16 @@ func (app *application) deleteSessionHandler(w http.ResponseWriter, r *http.Requ
         app.serverErrorResponse(w, r, err)
     }
 }
+
+func (app *application) listSessionsHandler(w http.ResponseWriter, r *http.Request) {
+    sessions, err := app.models.Sessions.GetAll()
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"sessions": sessions}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
