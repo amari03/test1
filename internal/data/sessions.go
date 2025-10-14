@@ -83,3 +83,26 @@ func (m SessionModel) Update(session *Session) error {
 
     return m.DB.QueryRow(query, args...).Scan(&session.UpdatedAt)
 }
+
+// Delete a specific session by ID.
+func (m SessionModel) Delete(id string) error {
+    query := `
+        DELETE FROM sessions
+        WHERE id = $1`
+
+    result, err := m.DB.Exec(query, id)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    if rowsAffected == 0 {
+        return ErrRecordNotFound
+    }
+
+    return nil
+}
