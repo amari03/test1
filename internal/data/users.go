@@ -62,3 +62,20 @@ func (m UserModel) Get(id string) (*User, error) {
     }
     return &user, nil
 }
+
+// Update a specific user record.
+func (m UserModel) Update(user *User) error {
+    query := `
+        UPDATE users
+        SET email = $1, role = $2
+        WHERE id = $3`
+
+    args := []interface{}{
+        user.Email,
+        user.Role,
+        user.ID,
+    }
+
+    _, err := m.DB.Exec(query, args...)
+    return err
+}

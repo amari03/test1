@@ -14,6 +14,7 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
     router.HandlerFunc(http.MethodPost, "/v1/users", app.createUserHandler)
     router.HandlerFunc(http.MethodGet, "/v1/users/:id", app.getUserHandler)
+    router.HandlerFunc(http.MethodPatch, "/v1/users/:id", app.updateUserHandler)
     router.HandlerFunc(http.MethodPost, "/v1/officers", app.createOfficerHandler)
     router.HandlerFunc(http.MethodGet, "/v1/officers/:id", app.getOfficerHandler)
     router.HandlerFunc(http.MethodPatch, "/v1/officers/:id", app.updateOfficerHandler)
@@ -30,6 +31,7 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodGet, "/v1/facilitators/:id", app.getFacilitatorHandler)
     router.HandlerFunc(http.MethodPatch, "/v1/facilitators/:id", app.updateFacilitatorHandler)
     router.HandlerFunc(http.MethodDelete, "/v1/facilitators/:id", app.deleteFacilitatorHandler)
+    
 
     return app.recoverPanic(app.rateLimit(router))
 }
