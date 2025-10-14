@@ -1,3 +1,4 @@
+//File in internal/data folder
 package data
 
 import (

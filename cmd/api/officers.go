@@ -173,21 +173,46 @@ func (app *application) getOfficerHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) listOfficersHandler(w http.ResponseWriter, r *http.Request) {
-    // Get query parameters from the URL
-    qs := r.URL.Query()
-    firstName := qs.Get("first_name")
-    lastName := qs.Get("last_name")
-    rankCode := qs.Get("rank_code")
+	var input struct {
+		FirstName string
+		LastName  string
+		RankCode  string
+		data.Filters
+	}
 
-    officers, err := app.models.Officers.GetAll(firstName, lastName, rankCode)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	v := validator.New()
+	qs := r.URL.Query()
 
-    err = app.writeJSON(w, http.StatusOK, envelope{"officers": officers}, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	// Use our new helpers to extract the query parameters.
+	input.FirstName = app.readString(qs, "first_name", "")
+	input.LastName = app.readString(qs, "last_name", "")
+	input.RankCode = app.readString(qs, "rank_code", "")
+
+	// Read pagination and sorting parameters.
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+
+	// Define the safelist for sorting.
+	input.Filters.SortSafelist = []string{"id", "first_name", "last_name", "rank_code", "-id", "-first_name", "-last_name", "-rank_code"}
+
+	// Validate the filter values.
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Call the model method.
+	officers, metadata, err := app.models.Officers.GetAll(input.FirstName, input.LastName, input.RankCode, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Send the JSON response with the data and metadata.
+	err = app.writeJSON(w, http.StatusOK, envelope{"officers": officers, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
