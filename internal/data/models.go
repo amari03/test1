@@ -16,7 +16,7 @@ type Models struct {
 	Courses  CourseModel
 	Sessions SessionModel
 	Facilitators FacilitatorModel 
-	// Attendance AttendanceModel
+	Attendance   AttendanceModel 
 }
 
 // NewModels initializes and returns a Models struct.
@@ -27,5 +27,6 @@ func NewModels(db *sql.DB) Models {
 		Courses:  CourseModel{DB: db},
 		Sessions: SessionModel{DB: db},
 		Facilitators: FacilitatorModel{DB: db},
+		Attendance:   AttendanceModel{DB: db},
 	}
 }
