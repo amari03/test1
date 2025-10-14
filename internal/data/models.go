@@ -14,8 +14,7 @@ type Models struct {
 	Users    UserModel
 	Officers OfficerModel
 	Courses  CourseModel
-	// You will add more models here as you build them out
-	// Sessions SessionModel
+	Sessions SessionModel
 	// Attendance AttendanceModel
 }
 
@@ -25,5 +24,6 @@ func NewModels(db *sql.DB) Models {
 		Users:    UserModel{DB: db},
 		Officers: OfficerModel{DB: db},
 		Courses:  CourseModel{DB: db},
+		Sessions: SessionModel{DB: db},
 	}
 }
