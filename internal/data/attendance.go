@@ -35,3 +35,26 @@ func ValidateAttendance(v *validator.Validator, attendance *Attendance) {
     v.Check(validator.In(attendance.Status, "attended", "absent", "excused"), "status", "must be one of attended, absent, or excused")
     v.Check(attendance.CreditedHours >= 0, "credited_hours", "must be zero or greater")
 }
+
+// Delete a specific attendance record by ID.
+func (m AttendanceModel) Delete(id string) error {
+    query := `
+        DELETE FROM attendance
+        WHERE id = $1`
+
+    result, err := m.DB.Exec(query, id)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    if rowsAffected == 0 {
+        return ErrRecordNotFound
+    }
+
+    return nil
+}
