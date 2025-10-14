@@ -12,46 +12,45 @@ import (
 
 // createUserHandler handles the creation of a new user.
 func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
-	}
+    var input struct {
+        Email    string `json:"email"`
+        Password string `json:"password"`
+        Role     string `json:"role"`
+    }
 
-	err := app.readJSON(w, r, &input)
-	if err != nil {
-		app.badRequestResponse(w, r, err)
-		return
-	}
+    err := app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
 
-	user := &data.User{
-		Email: input.Email,
-		Role:  input.Role,
-	}
+    user := &data.User{
+        Email: input.Email,
+        // For now, we're just assigning the password directly to the hash field.
+        PasswordHash: input.Password,
+        Role:  input.Role,
+    }
 
-	// TODO: Hash the password before storing it.
-	// For now, we'll skip this for brevity.
+    v := validator.New()
+    if data.ValidateUser(v, user); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
 
-	v := validator.New()
-	if data.ValidateUser(v, user); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
-		return
-	}
+    // This is the part we are now implementing
+    err = app.models.Users.Insert(user)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
 
-	// TODO: Implement the userModel.Insert() method in internal/data/users.go
-	// err = app.models.Users.Insert(user)
-	// if err != nil {
-	// 	app.serverErrorResponse(w, r, err)
-	// 	return
-	// }
+    headers := make(http.Header)
+    headers.Set("Location", fmt.Sprintf("/v1/users/%s", user.ID))
 
-	headers := make(http.Header)
-	headers.Set("Location", fmt.Sprintf("/v1/users/%s", user.ID))
-
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+    err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }
 
 // getUserHandler handles fetching a specific user by ID.
