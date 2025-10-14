@@ -147,3 +147,21 @@ func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request
             app.serverErrorResponse(w, r, err)
         }
     }
+
+func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request) {
+    users, err := app.models.Users.GetAll()
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    // We NEVER want to send password hashes to the client.
+    for _, user := range users {
+        user.PasswordHash = ""
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}

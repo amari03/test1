@@ -102,3 +102,40 @@ func (m UserModel) Update(user *User) error {
 
         return nil
     }
+
+// GetAll returns a slice of all users.
+func (m UserModel) GetAll() ([]*User, error) {
+    query := `
+        SELECT id, email, role, created_at, last_login_at
+        FROM users
+        ORDER BY email`
+
+    rows, err := m.DB.Query(query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var users []*User
+
+    for rows.Next() {
+        var user User
+        err := rows.Scan(
+            &user.ID,
+            &user.Email,
+            &user.Role,
+            &user.CreatedAt,
+            &user.LastLoginAt,
+        )
+        if err != nil {
+            return nil, err
+        }
+        users = append(users, &user)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return users, nil
+}
