@@ -120,42 +120,36 @@ func (m CourseModel) Delete(id string) error {
     return nil
 }
 
-// GetAll returns a slice of all courses.
-func (m CourseModel) GetAll() ([]*Course, error) {
+// GetAll returns a slice of all courses, with filtering.
+func (m CourseModel) GetAll(title string, category string) ([]*Course, error) {
     query := `
         SELECT id, title, category, default_credit_hours, description, created_by_user_id, created_at, updated_at
         FROM courses
+        WHERE (LOWER(title) ILIKE '%' || LOWER($1) || '%' OR $1 = '')
+        AND (LOWER(category) = LOWER($2) OR $2 = '')
         ORDER BY title`
 
-    rows, err := m.DB.Query(query)
+    // Note the new ILIKE for partial title matching!
+    rows, err := m.DB.Query(query, title, category)
     if err != nil {
         return nil, err
     }
     defer rows.Close()
 
     var courses []*Course
-
     for rows.Next() {
         var course Course
         err := rows.Scan(
-            &course.ID,
-            &course.Title,
-            &course.Category,
-            &course.DefaultCreditHours,
-            &course.Description,
-            &course.CreatedByUserID,
-            &course.CreatedAt,
-            &course.UpdatedAt,
+            &course.ID, &course.Title, &course.Category, &course.DefaultCreditHours,
+            &course.Description, &course.CreatedByUserID, &course.CreatedAt, &course.UpdatedAt,
         )
         if err != nil {
             return nil, err
         }
         courses = append(courses, &course)
     }
-
     if err = rows.Err(); err != nil {
         return nil, err
     }
-
     return courses, nil
 }

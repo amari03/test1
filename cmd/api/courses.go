@@ -154,7 +154,11 @@ func (app *application) deleteCourseHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) listCoursesHandler(w http.ResponseWriter, r *http.Request) {
-    courses, err := app.models.Courses.GetAll()
+    qs := r.URL.Query()
+    title := qs.Get("title")
+    category := qs.Get("category")
+
+    courses, err := app.models.Courses.GetAll(title, category)
     if err != nil {
         app.serverErrorResponse(w, r, err)
         return
