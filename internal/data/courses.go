@@ -29,3 +29,21 @@ func ValidateCourse(v *validator.Validator, course *Course) {
 	v.Check(validator.In(course.Category, "mandatory", "elective", "instructor"), "category", "invalid category type")
 	v.Check(course.DefaultCreditHours > 0, "default_credit_hours", "must be greater than zero")
 }
+
+// Insert a new course record into the database.
+func (m CourseModel) Insert(course *Course) error {
+    query := `
+        INSERT INTO courses (title, category, default_credit_hours, description, created_by_user_id)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, created_at`
+
+    args := []interface{}{
+        course.Title,
+        course.Category,
+        course.DefaultCreditHours,
+        course.Description,
+        course.CreatedByUserID,
+    }
+
+    return m.DB.QueryRow(query, args...).Scan(&course.ID, &course.CreatedAt)
+}
