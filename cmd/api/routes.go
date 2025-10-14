@@ -29,6 +29,7 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodPost, "/v1/facilitators", app.createFacilitatorHandler)
     router.HandlerFunc(http.MethodGet, "/v1/facilitators/:id", app.getFacilitatorHandler)
     router.HandlerFunc(http.MethodPatch, "/v1/facilitators/:id", app.updateFacilitatorHandler)
+    router.HandlerFunc(http.MethodDelete, "/v1/facilitators/:id", app.deleteFacilitatorHandler)
 
     return app.recoverPanic(app.rateLimit(router))
 }

@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "net/http"
+	"errors"
 
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/validator"
@@ -114,6 +115,27 @@ func (app *application) updateFacilitatorHandler(w http.ResponseWriter, r *http.
     }
 
     err = app.writeJSON(w, http.StatusOK, envelope{"facilitator": facilitator}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) deleteFacilitatorHandler(w http.ResponseWriter, r *http.Request) {
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
+
+    err := app.models.Facilitators.Delete(id)
+    if err != nil {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            app.notFoundResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"message": "facilitator successfully deleted"}, nil)
     if err != nil {
         app.serverErrorResponse(w, r, err)
     }

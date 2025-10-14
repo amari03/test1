@@ -73,3 +73,26 @@ func (m FacilitatorModel) Update(facilitator *Facilitator) error {
     _, err := m.DB.Exec(query, args...)
     return err
 }
+
+// Delete a specific facilitator by ID.
+func (m FacilitatorModel) Delete(id string) error {
+    query := `
+        DELETE FROM facilitators
+        WHERE id = $1`
+
+    result, err := m.DB.Exec(query, id)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    if rowsAffected == 0 {
+        return ErrRecordNotFound
+    }
+
+    return nil
+}
