@@ -5,9 +5,11 @@ import (
 	//"errors"
 	"fmt"
 	"net/http"
+	
 
 	"github.com/amari03/test1/internal/data"
 	"github.com/amari03/test1/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 // createUserHandler handles the creation of a new user.
@@ -53,19 +55,25 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
     }
 }
 
-// getUserHandler handles fetching a specific user by ID.
 func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	// For this example, we assume ID is a string (UUID)
-	// You might need to adjust readIDParam if you stick with integer IDs for some models
-	// params := httprouter.ParamsFromContext(r.Context())
-	// id := params.ByName("id")
+    params := httprouter.ParamsFromContext(r.Context())
+    id := params.ByName("id")
 
-	// For demonstration, let's pretend we have a user.
-	// You would replace this with a call to your data model.
-	// user, err := app.models.Users.Get(id)
-	user := data.User{ID: "some-uuid", Email: "test@example.com", Role: "viewer"} // Dummy data
-	err := app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+    user, err := app.models.Users.Get(id)
+    if err != nil {
+        if err == data.ErrRecordNotFound {
+            app.notFoundResponse(w, r)
+            return
+        }
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    // We don't want to send the password hash back to the client.
+    user.PasswordHash = ""
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
 }

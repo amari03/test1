@@ -12,7 +12,8 @@ type User struct {
     PasswordHash string    `json:"-"`
     Role         string    `json:"role"`
     CreatedAt    time.Time `json:"created_at"`
-    LastLoginAt  time.Time `json:"last_login_at"`
+    LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+    
 }
 
 type UserModel struct {
@@ -34,4 +35,30 @@ func (m UserModel) Insert(user *User) error {
     // We are not hashing yet, just storing the provided string.
     args := []interface{}{user.Email, user.PasswordHash, user.Role}
     return m.DB.QueryRow(query, args...).Scan(&user.ID, &user.CreatedAt)
+}
+
+// Get a specific user by ID.
+func (m UserModel) Get(id string) (*User, error) {
+    query := `
+        SELECT id, email, password_hash, role, created_at, last_login_at
+        FROM users
+        WHERE id = $1`
+
+    var user User
+    err := m.DB.QueryRow(query, id).Scan(
+        &user.ID,
+        &user.Email,
+        &user.PasswordHash,
+        &user.Role,
+        &user.CreatedAt,
+        &user.LastLoginAt,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, ErrRecordNotFound
+        }
+        return nil, err
+    }
+    return &user, nil
 }
