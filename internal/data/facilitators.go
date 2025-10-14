@@ -54,3 +54,22 @@ func (m FacilitatorModel) Get(id string) (*Facilitator, error) {
     }
     return &facilitator, nil
 }
+
+
+// Update a specific facilitator record.
+func (m FacilitatorModel) Update(facilitator *Facilitator) error {
+    query := `
+        UPDATE facilitators
+        SET first_name = $1, last_name = $2, notes = $3
+        WHERE id = $4`
+
+    args := []interface{}{
+        facilitator.FirstName,
+        facilitator.LastName,
+        facilitator.Notes,
+        facilitator.ID,
+    }
+
+    _, err := m.DB.Exec(query, args...)
+    return err
+}
