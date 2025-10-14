@@ -15,6 +15,7 @@ type Models struct {
 	Officers OfficerModel
 	Courses  CourseModel
 	Sessions SessionModel
+	Facilitators FacilitatorModel 
 	// Attendance AttendanceModel
 }
 
@@ -25,5 +26,6 @@ func NewModels(db *sql.DB) Models {
 		Officers: OfficerModel{DB: db},
 		Courses:  CourseModel{DB: db},
 		Sessions: SessionModel{DB: db},
+		Facilitators: FacilitatorModel{DB: db},
 	}
 }
