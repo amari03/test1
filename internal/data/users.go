@@ -300,3 +300,32 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 
 	return &user, nil
 }
+
+// UpdatePassword updates the password for a specific user.
+func (m UserModel) UpdatePassword(user *User) error {
+	query := `
+        UPDATE users
+        SET password_hash = $1, version = version + 1
+        WHERE id = $2 AND version = $3
+        RETURNING version`
+
+	args := []any{
+		user.Password.hash,
+		user.ID,
+		user.Version,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
+}

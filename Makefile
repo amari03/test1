@@ -4,7 +4,15 @@ include .envrc
 .PHONY: run/api
 run/api:
 	@echo  '--Running application--'
-	@go run ./cmd/api -port=4000 -env=development -db-dsn=${COMMENTS_DB_DSN} \
+	@go run ./cmd/api \
+	-port=4000 \
+	-env=development \
+	-db-dsn=${COMMENTS_DB_DSN} \
+	-smtp-host=${SMTP_HOST} \
+	-smtp-port=${SMTP_PORT} \
+	-smtp-username=${SMTP_USERNAME} \
+	-smtp-password=${SMTP_PASSWORD} \
+	-smtp-sender=${SMTP_SENDER} \
 
 	-cors-trusted-origins="http://localhost:9000 http://localhost:9001"
 
