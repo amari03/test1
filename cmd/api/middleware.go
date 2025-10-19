@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"strings"
+	"errors"
 
 	"golang.org/x/time/rate"
+	"github.com/amari03/test1/internal/data"
+	"github.com/amari03/test1/internal/validator"
 )
 
 // recoverPanic is middleware that recovers from panics and returns a 500 error.
@@ -74,4 +78,53 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
 	message := "rate limit exceeded"
 	app.errorResponse(w, r, http.StatusTooManyRequests, message)
+}
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Add the "Vary: Authorization" header. This indicates to caches that the
+		// response may vary based on the value of the Authorization header.
+		w.Header().Add("Vary", "Authorization")
+
+		// 1. Get the value of the Authorization header.
+		authorizationHeader := r.Header.Get("Authorization")
+
+		// 2. If the header is empty, treat the user as anonymous.
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// 3. Check if the header is in the "Bearer <token>" format.
+		headerParts := strings.Split(authorizationHeader, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+		token := headerParts[1]
+
+		// 4. Validate the token.
+		v := validator.New()
+		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// 5. Retrieve the user associated with the token.
+		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		// 6. Add the user information to the request context.
+		r = app.contextSetUser(r, user)
+		next.ServeHTTP(w, r)
+	})
 }

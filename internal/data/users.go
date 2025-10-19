@@ -11,6 +11,9 @@ import (
     "golang.org/x/crypto/bcrypt"
 )
 
+// Create a global variable to represent an anonymous user.
+var AnonymousUser = &User{}
+
 type User struct {
     ID          string     `json:"id"`
 	Email       string     `json:"email"`
@@ -30,6 +33,11 @@ type UserModel struct {
 type password struct{
     plaintext *string
     hash    []byte
+}
+
+// IsAnonymous checks if a User instance is the anonymous user.
+func (u *User) IsAnonymous() bool {
+    return u == AnonymousUser
 }
 
 func ValidateEmail(v *validator.Validator, email string) {
@@ -259,4 +267,36 @@ func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
     }
 
     return &user, nil
+}
+
+// GetByEmail retrieves a user by their email address.
+func (m UserModel) GetByEmail(email string) (*User, error) {
+	query := `
+        SELECT id, email, password_hash, role, activated, version, created_at, last_login_at
+        FROM users
+        WHERE email = $1`
+
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password.hash,
+		&user.Role,
+		&user.Activated,
+		&user.Version,
+		&user.CreatedAt,
+		&user.LastLoginAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
