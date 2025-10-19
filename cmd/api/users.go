@@ -2,15 +2,15 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
+    "errors"
+    "fmt"
+    "net/http"
     "time"
-	
+    
 
-	"github.com/amari03/test1/internal/data"
-	"github.com/amari03/test1/internal/validator"
-	"github.com/julienschmidt/httprouter"
+    "github.com/amari03/test1/internal/data"
+    "github.com/amari03/test1/internal/validator"
+    "github.com/julienschmidt/httprouter"
 )
 
 // createUserHandler handles the creation of a new user.
@@ -109,7 +109,7 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // We don't want to send the password hash back to the client.
-    user.PasswordHash = ""
+    // user.PasswordHash = ""  // <-- COMMENTED OUT
 
     err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
     if err != nil {
@@ -158,7 +158,7 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
     }
     
     // We don't want to send the password hash back to the client.
-    user.PasswordHash = ""
+    // user.PasswordHash = "" // <-- COMMENTED OUT
 
     err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
     if err != nil {
@@ -195,9 +195,9 @@ func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request)
     }
 
     // We NEVER want to send password hashes to the client.
-    for _, user := range users {
-        user.PasswordHash = ""
-    }
+    // for _, user := range users { // <-- COMMENTED OUT
+    //    user.PasswordHash = ""   // <-- COMMENTED OUT
+    // }                          // <-- COMMENTED OUT
 
     err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
     if err != nil {

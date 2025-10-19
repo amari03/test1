@@ -55,6 +55,22 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodGet, "/v1/attendance/:id", app.getAttendanceHandler)
     router.HandlerFunc(http.MethodPatch, "/v1/attendance/:id", app.updateAttendanceHandler)
     router.HandlerFunc(http.MethodGet, "/v1/attendance", app.listAttendanceHandler)
+
+
+    // Session Facilitators
+    router.HandlerFunc(http.MethodPost, "/v1/session-facilitators", app.createSessionFacilitatorHandler)
+    router.HandlerFunc(http.MethodDelete, "/v1/session-facilitators/:id", app.deleteSessionFacilitatorHandler)
+    router.HandlerFunc(http.MethodGet, "/v1/session-facilitators", app.listSessionFacilitatorsHandler)
+
+    // Session Feedback
+    router.HandlerFunc(http.MethodPost, "/v1/session-feedback", app.createSessionFeedbackHandler)
+    router.HandlerFunc(http.MethodGet, "/v1/session-feedback", app.listSessionFeedbackHandler)
+
+    // Import Jobs
+    router.HandlerFunc(http.MethodPost, "/v1/import-jobs", app.createImportJobHandler)
+    router.HandlerFunc(http.MethodGet, "/v1/import-jobs", app.listImportJobsHandler)
+    router.HandlerFunc(http.MethodGet, "/v1/import-jobs/:id", app.getImportJobHandler)
+
     
     return app.recoverPanic(app.rateLimit(app.authenticate(router)))
 }

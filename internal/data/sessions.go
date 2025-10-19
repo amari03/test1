@@ -142,7 +142,7 @@ func (m SessionModel) GetAll(location string, courseID string, filters Filters) 
         SELECT count(*) OVER(), id, course_id, start_datetime, end_datetime, location_text,
                created_at, updated_at, version
         FROM sessions
-        WHERE (to_tsvector('simple', location_text) @@ plainto_tsquery('simple', $1) OR $1 = '')
+        WHERE (to_tsvector('simple', COALESCE(location_text, '')) @@ plainto_tsquery('simple', $1) OR $1 = '')
         AND (course_id::text = $2 OR $2 = '')
         ORDER BY %s %s, id ASC
         LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
