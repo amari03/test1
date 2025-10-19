@@ -58,5 +58,5 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodPatch, "/v1/attendance/:id", app.updateAttendanceHandler)
     router.HandlerFunc(http.MethodGet, "/v1/attendance", app.listAttendanceHandler)
     
-    return app.recoverPanic(app.rateLimit(app.authenticate(router)))
+    return app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router))))
 }

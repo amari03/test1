@@ -13,7 +13,6 @@ run/api:
 	-smtp-username=${SMTP_USERNAME} \
 	-smtp-password=${SMTP_PASSWORD} \
 	-smtp-sender=${SMTP_SENDER} \
-
 	-cors-trusted-origins="http://localhost:9000 http://localhost:9001"
 
 ## db/psql: connect to the database using psql (terminal)

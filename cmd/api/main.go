@@ -8,6 +8,7 @@ import (
     "os"
     "time"
     "sync"
+    "strings"
 
     "github.com/amari03/test1/internal/data"
     "github.com/amari03/test1/internal/mailer"
@@ -29,6 +30,9 @@ type config struct {
 		password string
 		sender   string
 	}
+    cors struct {
+        trustedOrigins []string
+    }
 }
 
 type application struct {
@@ -52,6 +56,11 @@ func main() {
 	flag.StringVar(&cfg.smtp.username, "a317105c18d1b8", "your-mailtrap-username", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "13c0df1625c6e6", "your-mailtrap-password", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Your App <no-reply@yourapp.com>", "SMTP sender")
+
+    flag.Func("cors-trusted-origins", "Trusted CORS origins (space-separated)", func(val string) error {
+		cfg.cors.trustedOrigins = strings.Fields(val)
+		return nil
+	})
 
     flag.Parse()
 

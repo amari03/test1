@@ -163,3 +163,38 @@ func (app *application) requireActivatedUser(next http.Handler) http.Handler {
 	// we only check for activation if the user is not anonymous.
 	return app.requireAuthenticatedUser(fn)
 }
+
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Add the "Vary: Origin" header.
+		w.Header().Add("Vary", "Origin")
+
+		// Add the "Vary: Access-Control-Request-Method" header for preflight requests.
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+
+		origin := r.Header.Get("Origin")
+
+		// Check if we have a valid origin and if it's in our trusted list.
+		if origin != "" && len(app.config.cors.trustedOrigins) > 0 {
+			for i := range app.config.cors.trustedOrigins {
+				if origin == app.config.cors.trustedOrigins[i] {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+
+					// Check if this is a preflight (OPTIONS) request.
+					if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+						// Set the necessary headers for the preflight response.
+						w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+						w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+						// Send a 200 OK status and terminate the middleware chain.
+						w.WriteHeader(http.StatusOK)
+						return
+					}
+				}
+			}
+		}
+
+		// Call the next handler in the chain.
+		next.ServeHTTP(w, r)
+	})
+}
