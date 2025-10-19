@@ -3,12 +3,6 @@ package data
 
 import (
 	"database/sql"
-	"errors"
-)
-
-var (
-	ErrRecordNotFound = errors.New("record not found")
-	ErrEditConflict   = errors.New("edit conflict")
 )
 
 // Models struct holds all data models for the application.
@@ -18,7 +12,8 @@ type Models struct {
 	Courses  CourseModel
 	Sessions SessionModel
 	Facilitators FacilitatorModel 
-	Attendance   AttendanceModel 
+	Attendance   AttendanceModel
+	Tokens TokenModel 
 }
 
 // NewModels initializes and returns a Models struct.
@@ -30,5 +25,6 @@ func NewModels(db *sql.DB) Models {
 		Sessions: SessionModel{DB: db},
 		Facilitators: FacilitatorModel{DB: db},
 		Attendance:   AttendanceModel{DB: db},
+		Tokens:  TokenModel{DB: db},
 	}
 }

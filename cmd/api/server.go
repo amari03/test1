@@ -41,12 +41,20 @@ func (app *application) serve() error {
 		app.logger.Info("shutting down server", "signal", s.String())
 
 		// Create a context with a 30-second timeout.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
 		// Call Shutdown() on the server, passing in the context.
 		// This will cause ListenAndServe() to immediately return a http.ErrServerClosed error.
-		shutdownError <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		if err != nil {
+    		shutdownError <- err
+		}
+
+		// THIS IS THE NEW PART
+		app.logger.Info("completing background tasks", "addr", srv.Addr)
+		app.wg.Wait() // Wait for all background goroutines to finish.
+		shutdownError <- nil
 	}()
 
 	app.logger.Info("starting server", "addr", srv.Addr, "env", app.config.env)

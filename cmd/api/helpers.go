@@ -112,3 +112,22 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 	}
 	return i
 }
+
+// background runs an arbitrary function in a background goroutine.
+// It increments the WaitGroup counter before starting, and decrements it when the goroutine finishes.
+// It also recovers from any panics to prevent the application from crashing.
+func (app *application) background(fn func()) {
+    app.wg.Add(1)
+
+    go func() {
+        defer app.wg.Done()
+
+        defer func() {
+            if err := recover(); err != nil {
+                app.logger.Error(fmt.Sprintf("%v", err))
+            }
+        }()
+
+        fn()
+    }()
+}

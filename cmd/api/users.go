@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+    "time"
 	
 
 	"github.com/amari03/test1/internal/data"
@@ -28,9 +29,15 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 
     user := &data.User{
         Email: input.Email,
-        // For now, we're just assigning the password directly to the hash field.
-        PasswordHash: input.Password,
         Role:  input.Role,
+        Activated: false, //users not activiated by default
+    }
+
+    // Use the Set() method to hash the password.
+    err = user.Password.Set(input.Password)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
     }
 
     v := validator.New()
@@ -39,16 +46,48 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
         return
     }
 
-    // This is the part we are now implementing
     err = app.models.Users.Insert(user)
+    if err != nil {
+        switch {
+        // If we get a duplicate email error, send a specific validation error.
+        case errors.Is(err, data.ErrDuplicateEmail):
+            v.AddError("email", "a user with this email address already exists")
+            app.failedValidationResponse(w, r, v.Errors)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+    
+    // Generate a new activation token for the user.
+    token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
     if err != nil {
         app.serverErrorResponse(w, r, err)
         return
     }
 
+     // Send the welcome email with the activation token.
+    app.background(func() {
+        // Create a map to hold the data for the template.
+        emailData := map[string]interface{}{
+            "activationToken": token.Plaintext,
+            "userID":          user.ID,
+        }
+
+        err = app.mailer.Send(user.Email, "user_welcome.tmpl", emailData)
+        if err != nil {
+            app.logger.Error(err.Error())
+        }
+    })
+
+
+    // Per the slides, we'll want to send a welcome email here.
+    // We will add that in the next phase.
+
     headers := make(http.Header)
     headers.Set("Location", fmt.Sprintf("/v1/users/%s", user.ID))
 
+    // Return a 201 Created response with the user data in the body.
     err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
     if err != nil {
         app.serverErrorResponse(w, r, err)
@@ -161,6 +200,60 @@ func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request)
     }
 
     err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+    }
+}
+
+func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+    var input struct {
+        TokenPlaintext string `json:"token"`
+    }
+
+    err := app.readJSON(w, r, &input)
+    if err != nil {
+        app.badRequestResponse(w, r, err)
+        return
+    }
+
+    v := validator.New()
+    if data.ValidateTokenPlaintext(v, input.TokenPlaintext); !v.Valid() {
+        app.failedValidationResponse(w, r, v.Errors)
+        return
+    }
+
+    user, err := app.models.Users.GetForToken(data.ScopeActivation, input.TokenPlaintext)
+    if err != nil {
+        switch {
+        case errors.Is(err, data.ErrRecordNotFound):
+            v.AddError("token", "invalid or expired activation token")
+            app.failedValidationResponse(w, r, v.Errors)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+
+    user.Activated = true
+
+    err = app.models.Users.Update(user)
+    if err != nil {
+        switch {
+        case errors.Is(err, data.ErrEditConflict):
+            app.editConflictResponse(w, r) // We will create this error response next
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
+        return
+    }
+
+    err = app.models.Tokens.DeleteAllForUser(data.ScopeActivation, user.ID)
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+    err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
     if err != nil {
         app.serverErrorResponse(w, r, err)
     }
