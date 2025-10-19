@@ -16,7 +16,7 @@ type Course struct {
 	Category           string    `json:"category"`
 	DefaultCreditHours float64   `json:"default_credit_hours"`
 	Description        string    `json:"description,omitempty"`
-	CreatedByUserID    string    `json:"created_by_user_id"`
+	CreatedByUserID    string    `json:"-"` 
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          *time.Time `json:"updated_at,omitempty"`
     Version            int32      `json:"version"`

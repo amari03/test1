@@ -14,6 +14,9 @@ import (
 // createCourseHandler will handle POST /v1/courses
 // createCourseHandler remains good. Note the hardcoded user ID is for development.
 func (app *application) createCourseHandler(w http.ResponseWriter, r *http.Request) {
+
+    user := app.contextGetUser(r)
+
     var input struct {
         Title              string  `json:"title"`
         Category           string  `json:"category"`
@@ -33,7 +36,7 @@ func (app *application) createCourseHandler(w http.ResponseWriter, r *http.Reque
         Category:           input.Category,
         DefaultCreditHours: input.DefaultCreditHours,
         Description:        input.Description,
-        CreatedByUserID:    "1a7a5180-4303-4318-8789-1a007f339eec", // Our dummy user
+        CreatedByUserID:    user.ID,
     }
 
     v := validator.New()

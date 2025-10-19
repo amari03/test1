@@ -51,11 +51,11 @@ func main() {
     flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("CRABOO_DB_DSN"), "PostgreSQL DSN")
 
     // Add flags for SMTP settings.
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 2525, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "a317105c18d1b8", "your-mailtrap-username", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "13c0df1625c6e6", "your-mailtrap-password", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Your App <no-reply@yourapp.com>", "SMTP sender")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", os.Getenv("SMTP_HOST"), "SMTP host")
+    flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port") // Default port
+    flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("SMTP_USERNAME"), "SMTP username")
+    flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("SMTP_PASSWORD"), "SMTP password")
+    flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("SMTP_SENDER"), "SMTP sender")
 
     flag.Func("cors-trusted-origins", "Trusted CORS origins (space-separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)

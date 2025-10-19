@@ -40,7 +40,7 @@ func (app *application) routes() http.Handler {
     router.HandlerFunc(http.MethodDelete, "/v1/courses/:id", app.deleteCourseHandler)
     router.HandlerFunc(http.MethodGet, "/v1/courses", app.listCoursesHandler)
 
-    router.HandlerFunc(http.MethodPost, "/v1/sessions", app.createSessionHandler)
+    router.Handler(http.MethodPost, "/v1/sessions", app.requireActivatedUser(http.HandlerFunc(app.createSessionHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/sessions/:id", app.getSessionHandler)
     router.HandlerFunc(http.MethodPatch, "/v1/sessions/:id", app.updateSessionHandler)
     router.HandlerFunc(http.MethodDelete, "/v1/sessions/:id", app.deleteSessionHandler)
