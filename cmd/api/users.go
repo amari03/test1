@@ -100,16 +100,13 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 
     user, err := app.models.Users.Get(id)
     if err != nil {
-        if err == data.ErrRecordNotFound {
+        if errors.Is(err, data.ErrRecordNotFound) {
             app.notFoundResponse(w, r)
             return
         }
         app.serverErrorResponse(w, r, err)
         return
     }
-
-    // We don't want to send the password hash back to the client.
-    // user.PasswordHash = ""  // <-- COMMENTED OUT
 
     err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
     if err != nil {
@@ -157,9 +154,6 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
         return
     }
     
-    // We don't want to send the password hash back to the client.
-    // user.PasswordHash = "" // <-- COMMENTED OUT
-
     err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
     if err != nil {
         app.serverErrorResponse(w, r, err)
@@ -193,11 +187,6 @@ func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request)
         app.serverErrorResponse(w, r, err)
         return
     }
-
-    // We NEVER want to send password hashes to the client.
-    // for _, user := range users { // <-- COMMENTED OUT
-    //    user.PasswordHash = ""   // <-- COMMENTED OUT
-    // }                          // <-- COMMENTED OUT
 
     err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
     if err != nil {
