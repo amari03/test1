@@ -28,48 +28,48 @@ func (app *application) routes() http.Handler {
     //this is how the requireActivated function will look like
     router.Handler(http.MethodGet, "/v1/users", app.requireActivatedUser(http.HandlerFunc(app.listUsersHandler)))
 
-    router.HandlerFunc(http.MethodPost, "/v1/officers", app.createOfficerHandler)
+    router.Handler(http.MethodPost, "/v1/officers", app.requireActivatedUser(http.HandlerFunc(app.createOfficerHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/officers/:id", app.getOfficerHandler)
-    router.HandlerFunc(http.MethodPatch, "/v1/officers/:id", app.updateOfficerHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/officers/:id", app.deleteOfficerHandler)
+    router.Handler(http.MethodPatch, "/v1/officers/:id", app.requireActivatedUser(http.HandlerFunc(app.updateOfficerHandler)))
+    router.Handler(http.MethodDelete, "/v1/officers/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteOfficerHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/officers", app.listOfficersHandler)
 
-    router.HandlerFunc(http.MethodPost, "/v1/courses", app.createCourseHandler)
+    router.Handler(http.MethodPost, "/v1/courses", app.requireActivatedUser(http.HandlerFunc(app.createCourseHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/courses/:id", app.getCourseHandler)
-    router.HandlerFunc(http.MethodPatch, "/v1/courses/:id", app.updateCourseHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/courses/:id", app.deleteCourseHandler)
+    router.Handler(http.MethodPatch, "/v1/courses/:id", app.requireActivatedUser(http.HandlerFunc(app.updateCourseHandler)))
+    router.Handler(http.MethodDelete, "/v1/courses/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteCourseHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/courses", app.listCoursesHandler)
 
     router.Handler(http.MethodPost, "/v1/sessions", app.requireActivatedUser(http.HandlerFunc(app.createSessionHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/sessions/:id", app.getSessionHandler)
-    router.HandlerFunc(http.MethodPatch, "/v1/sessions/:id", app.updateSessionHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/sessions/:id", app.deleteSessionHandler)
+    router.Handler(http.MethodPatch, "/v1/sessions/:id", app.requireActivatedUser(http.HandlerFunc(app.updateSessionHandler)))
+    router.Handler(http.MethodDelete, "/v1/sessions/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteSessionHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/sessions", app.listSessionsHandler)
 
-    router.HandlerFunc(http.MethodPost, "/v1/facilitators", app.createFacilitatorHandler)
+    router.Handler(http.MethodPost, "/v1/facilitators", app.requireActivatedUser(http.HandlerFunc(app.createFacilitatorHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/facilitators/:id", app.getFacilitatorHandler)
-    router.HandlerFunc(http.MethodPatch, "/v1/facilitators/:id", app.updateFacilitatorHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/facilitators/:id", app.deleteFacilitatorHandler)
+    router.Handler(http.MethodPatch, "/v1/facilitators/:id", app.requireActivatedUser(http.HandlerFunc(app.updateFacilitatorHandler)))
+    router.Handler(http.MethodDelete, "/v1/facilitators/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteFacilitatorHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/facilitators", app.listFacilitatorsHandler)
 
-    router.HandlerFunc(http.MethodPost, "/v1/attendance", app.createAttendanceHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/attendance/:id", app.deleteAttendanceHandler)
+    router.Handler(http.MethodPost, "/v1/attendance", app.requireActivatedUser(http.HandlerFunc(app.createAttendanceHandler)))
+    router.Handler(http.MethodDelete, "/v1/attendance/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteAttendanceHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/attendance/:id", app.getAttendanceHandler)
-    router.HandlerFunc(http.MethodPatch, "/v1/attendance/:id", app.updateAttendanceHandler)
+    router.Handler(http.MethodPatch, "/v1/attendance/:id", app.requireActivatedUser(http.HandlerFunc(app.updateAttendanceHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/attendance", app.listAttendanceHandler)
 
 
     // Session Facilitators
-    router.HandlerFunc(http.MethodPost, "/v1/session-facilitators", app.createSessionFacilitatorHandler)
-    router.HandlerFunc(http.MethodDelete, "/v1/session-facilitators/:id", app.deleteSessionFacilitatorHandler)
+    router.Handler(http.MethodPost, "/v1/session-facilitators", app.requireActivatedUser(http.HandlerFunc(app.createSessionFacilitatorHandler)))
+    router.Handler(http.MethodDelete, "/v1/session-facilitators/:id", app.requireActivatedUser(http.HandlerFunc(app.deleteSessionFacilitatorHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/session-facilitators", app.listSessionFacilitatorsHandler)
 
     // Session Feedback
-    router.HandlerFunc(http.MethodPost, "/v1/session-feedback", app.createSessionFeedbackHandler)
+    router.Handler(http.MethodPost, "/v1/session-feedback", app.requireActivatedUser(http.HandlerFunc(app.createSessionFeedbackHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/session-feedback", app.listSessionFeedbackHandler)
 
     // Import Jobs
-    router.HandlerFunc(http.MethodPost, "/v1/import-jobs", app.createImportJobHandler)
+    router.Handler(http.MethodPost, "/v1/import-jobs", app.requireActivatedUser(http.HandlerFunc(app.createImportJobHandler)))
     router.HandlerFunc(http.MethodGet, "/v1/import-jobs", app.listImportJobsHandler)
     router.HandlerFunc(http.MethodGet, "/v1/import-jobs/:id", app.getImportJobHandler)
 
