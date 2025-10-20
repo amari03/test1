@@ -1,0 +1,183 @@
+@startuml
+' Entity Relationship Diagram for National In-Service Training DB
+' Produced for: API design (Officers, Courses, Sessions, Attendance, Lookups, Users)
+
+hide circle
+skinparam linetype ortho
+
+' ---------- LOOKUP TABLES ----------
+entity "regions" as regions {
+  * id : text <<PK>>         -- e.g. "northern"
+  --
+  name : text NOT NULL
+}
+
+entity "formations" as formations {
+  * id : text <<PK>>         -- e.g. "corozal"
+  --
+  name : text NOT NULL
+  region_id : text <<FK>>    -- -> regions.id
+}
+
+entity "postings" as postings {
+  * id : text <<PK>>         -- e.g. "CIB"
+  --
+  name : text NOT NULL
+}
+
+entity "ranks" as ranks {
+  * code : text <<PK>>       -- e.g. "INSP"
+  --
+  name : text NOT NULL
+}
+
+' ---------- CORE ENTITIES ----------
+entity "users" as users {
+  * id : uuid <<PK>>
+  --
+  email : text UNIQUE NOT NULL
+  password_hash : text NOT NULL
+  role : text NOT NULL       -- enum: admin|contributor|viewer
+  created_at : timestamptz
+  last_login_at : timestamptz
+}
+
+entity "officers" as officers {
+  * id : uuid <<PK>>
+  --
+  regulation_number : text UNIQUE   -- optional, unique when present
+  first_name : text NOT NULL
+  last_name : text NOT NULL
+  sex : text NOT NULL                -- enum: male|female|unknown
+  rank_code : text <<FK>>            -- -> ranks.code
+  region_id : text <<FK>>            -- -> regions.id (nullable)
+  formation_id : text <<FK>>         -- -> formations.id (nullable)
+  posting_id : text <<FK>>           -- -> postings.id (nullable)
+  created_at : timestamptz
+  updated_at : timestamptz
+  archived_at : timestamptz
+}
+
+entity "courses" as courses {
+  * id : uuid <<PK>>
+  --
+  title : text NOT NULL
+  category : text NOT NULL           -- enum: mandatory|elective|instructor
+  default_credit_hours : numeric(4,1) NOT NULL
+  description : text
+  created_by_user_id : uuid <<FK>>   -- -> users.id
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "sessions" as sessions {
+  * id : uuid <<PK>>
+  --
+  course_id : uuid <<FK>>           -- -> courses.id
+  start_datetime : timestamptz NOT NULL
+  end_datetime : timestamptz NOT NULL
+  region_id : text <<FK>>           -- nullable: where session held
+  formation_id : text <<FK>>
+  posting_id : text <<FK>>
+  location_text : text
+  facilitator_notes : text
+  credit_hours_override : numeric(4,1)   -- nullable, overrides course default
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+' Facilitator can be an Officer (link) OR an external person (free text)
+entity "facilitators" as facilitators {
+  * id : uuid <<PK>>
+  --
+  officer_id : uuid <<FK>>    -- nullable -> officers.id (if facilitator is an officer)
+  first_name : text           -- optional if officer_id present
+  last_name : text
+  rank_code : text <<FK>>     -- optional
+  posting_id : text <<FK>>    -- optional
+  notes : text
+}
+
+' Attendance is the junction table officer <-> session with credited hours & status
+entity "attendance" as attendance {
+  * id : uuid <<PK>>
+  --
+  officer_id : uuid <<FK>>    -- -> officers.id
+  session_id : uuid <<FK>>    -- -> sessions.id
+  status : text NOT NULL      -- enum: attended|absent|excused
+  credited_hours : numeric(4,1) NOT NULL
+  created_at : timestamptz
+  UNIQUE (officer_id, session_id)
+}
+
+entity "import_jobs" as import_jobs {
+  * id : uuid <<PK>>
+  --
+  type : text NOT NULL        -- officers|courses|attendance
+  status : text NOT NULL      -- pending|running|failed|completed
+  error_message : text
+  created_by_user_id : uuid <<FK>> -- -> users.id
+  created_at : timestamptz
+  finished_at : timestamptz
+}
+
+' ---------- FEEDBACK ----------
+entity "session_feedback" as session_feedback {
+  * id : uuid <<PK>>
+  --
+  session_id : uuid <<FK>>      -- -> sessions.id
+  facilitator_id : uuid <<FK>>  -- -> facilitators.id
+  officer_id : uuid <<FK>>      -- -> officers.id (who gives feedback)
+  rating : numeric(2,1) NOT NULL   -- e.g. 1.0–5.0
+  comments : text
+  created_at : timestamptz
+  UNIQUE (officer_id, session_id, facilitator_id)
+}
+
+' ---------- RELATIONSHIPS ----------
+' formations -> regions (many formations belong to one region)
+regions ||--o{ formations : "has >"
+
+' officers -> lookups
+regions ||--o{ officers : "may belong to >"
+formations ||--o{ officers : "may belong to >"
+postings ||--o{ officers : "may belong to >"
+ranks ||--o{ officers : "rank ->"
+
+' courses & sessions
+courses ||--o{ sessions : "has >"
+
+' session location lookups
+regions ||--o{ sessions : "can be held in >"
+formations ||--o{ sessions : "can be held in >"
+postings ||--o{ sessions : "can be held in >"
+
+' sessions -> facilitators (many-to-many potential if multiple facilitators per session)
+' Implement session_facilitators junction for many-to-many (explicit)
+entity "session_facilitators" as session_facilitators {
+  * id : uuid <<PK>>
+  --
+  session_id : uuid <<FK>>   -- -> sessions.id
+  facilitator_id : uuid <<FK>> -- -> facilitators.id
+  role : text                -- e.g. lead|assistant
+}
+sessions ||--o{ session_facilitators : "has >"
+facilitators ||--o{ session_facilitators : "assigned to >"
+
+' attendance relationships
+officers ||--o{ attendance : "attends >"
+sessions ||--o{ attendance : "has attendees >"
+
+' users relations
+users ||--o{ courses : "created by >"
+users ||--o{ import_jobs : "created >"
+
+' facilitators optional linking to officer and lookups
+officers ||--o{ facilitators : "may be a >"
+ranks ||--o{ facilitators : "rank ->"
+postings ||--o{ facilitators : "posting ->"
+
+sessions ||--o{ session_feedback : "receives >"
+facilitators ||--o{ session_feedback : "rated in >"
+officers ||--o{ session_feedback : "gives >"
+@enduml

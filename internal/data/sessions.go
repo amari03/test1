@@ -40,7 +40,12 @@ func (m SessionModel) Insert(session *Session) error {
         VALUES ($1, $2, $3, $4)
         RETURNING id, created_at, version`
 
-	args := []interface{}{session.CourseID, session.Start, session.End, session.Location}
+	args := []interface{}{
+		session.CourseID, 
+		session.Start, 
+		session.End, 
+		session.Location,
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

@@ -1,111 +1,133 @@
+Phase 1: Setup - Becoming an Authorized User
+Step 1: Register a New User
+curl -i -X POST -H "Content-Type: application/json" \
+-d '{"email": "testing@example.com", "password": "password123", "role": "admin"}' \ http://localhost:4000/v1/users
+
+Step 2: Activate the User
+-Go to your Mailtrap inbox.
+-Open the welcome email sent to test@example.com.
+-Copy the 26-character activation token from the email body.
+# Replace YOUR_ACTIVATION_TOKEN with the token you copied from the email
+curl -i -X PUT -H "Content-Type: application/json" \ -d '{"token": "YOUR_ACTIVATION_TOKEN"}' \ http://localhost:4000/v1/users/activated
+
+Step 3: Authenticate and Get a Bearer Token
+curl -i -X POST -H "Content-Type: application/json" \ -d '{"email": "testing@example.com", "password": "password123"}' \ http://localhost:4000/v1/tokens/authentication
+
+Step 4: Store the Token in a Shell Variable
+# Replace YOUR_BEARER_TOKEN with the token from the step above
+export TOKEN="YOUR_BEARER_TOKEN"
+
+# You can verify it's stored by running:
+echo $TOKEN
+
+
 **Officer Endpoint:**
+Phase 2: Testing Officer Endpoints
+1. Create Officer (POST)
+curl -i -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"regulation_number": "PC700", "first_name": "Andy", "last_name": "Doe", "sex": "male", "rank_code": "PC"}' http://localhost:4000/v1/officers
 
-* Creating an officer:
+export OFFICER_ID="<the-id-you-just-copied>"
 
-BODY_OFFICER='{
+2. Get All Officers (GET)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers
 
-&nbsp;   "regulation_number": "PC700",
+3. Get One Officer (GET by ID)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers/$OFFICER_ID
 
-&nbsp;   "first_name": "Rachel",
+4. Update Officer (PATCH)
+curl -i -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" −d′"rankcode":"CPL"′ http://localhost:4000/v1/officers/TOKEN" −d′"rankc​ode":"CPL"′ http://localhost:4000/v1/officers/OFFICER_ID
 
-&nbsp;   "last_name": "Smith",
-
-&nbsp;   "sex": "female",
-
-&nbsp;   "rank_code": "PC"
-
-}'
-
-
-
-curl -i -X POST -H "Content-Type: application/json" -d "$BODY_OFFICER" http://localhost:4000/v1/officers
-
-
-
-* Read (get) officer:
-curl -i http://localhost:4000/v1/officers/$OFFICER_ID
-
-
-
-* Update officer:
-
-UPDATE_BODY_OFFICER='{"rank_code": "SGT"}'
-
-
-curl -i -X PATCH -H "Content-Type: application/json" -d "$UPDATE_BODY_OFFICER" http://localhost:4000/v1/officers/$OFFICER_ID
-
-
-
-* Delete officer:
-
-curl -i -X DELETE http://localhost:4000/v1/officers/$OFFICER_ID
+5. Delete Officer (DELETE)
+curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers/$OFFICER_ID
 
 -------------------------------------------------------------------------------------
 
 COURSES ENDPOINT 
 -------------------
-C R E A T E:
-BODY_COURSE='{
-    "title": "Defensive Driving",
-    "category": "elective",
-    "default_credit_hours": 16.0,
-    "description": "Advanced techniques for vehicle control."
-}'
+Phase 3: Testing Course Endpoints
+1. Create Course (POST)
+curl -i -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"title": "Defensive Driving", "category": "elective", "default_credit_hours": 25.0, "description": "Advanced techniques for vehicle control"}' \
+http://localhost:4000/v1/courses
 
-curl -i -X POST -H "Content-Type: application/json" -d "$BODY_COURSE" http://localhost:4000/v1/courses
+export COURSE_ID="<the-course-id-you-just-copied>"
 
 
-R E A D:
-# Replace with the actual ID from the create step
-COURSE_ID="a5eabf0d-8ddb-4bd2-a857-3782d3928296"
+2. Get All Courses (GET)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/courses
 
-curl -i http://localhost:4000/v1/courses/$COURSE_ID
+3. Get One Course (GET by ID)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/courses/$COURSE_ID
 
+4. Update Course (PATCH)
+curl -i -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"category": "mandatory"}' \
+http://localhost:4000/v1/courses/$COURSE_ID
 
-U P D A T E:
-UPDATE_BODY_COURSE='{
-    "title": "Advanced Defensive Driving"
-}'
-
-curl -i -X PATCH -H "Content-Type: application/json" -d "$UPDATE_BODY_COURSE" http://localhost:4000/v1/courses/$COURSE_ID
-
-
-D E L E T E:
-curl -i -X DELETE http://localhost:4000/v1/courses/$COURSE_ID
-
-L I S T   A L L   C O U R S E S:
-curl -i http://localhost:4000/v1/courses
+5. Delete Course (DELETE)
+curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/courses/$COURSE_ID
 
 --------------------------------------------------------------------------------------
 
 FACILITATOR ENDPOINTS
 ----------------------
+Phase 4: Testing Facilitator Endpoints
+1. Create Facilitator (POST)
+curl -i -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"first_name": "Jane", "last_name": "Smith", "notes": "Specializes in practical exercises."}' \
+http://localhost:4000/v1/facilitators
 
-C R E A T E :
-BODY_FACILITATOR='{
-    "first_name": "Goofy",
-    "last_name": "Goof",
-    "notes": "Specializes in practical exercises."
-}'
+export FACILITATOR_ID="<the-facilitator-id-you-just-copied>"
 
-curl -i -X POST -H "Content-Type: application/json" -d "$BODY_FACILITATOR" http://localhost:4000/v1/facilitators
+2. GET, Update, Delete Facilitators...
+Again, follow the same pattern for Get All, Get One, Update, and Delete for facilitators, using the `$FACILITATOR_ID`.
 
+GET all:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/facilitators
 
-R E A D:
-# Replace with the actual ID from the create step
-FACILITATOR_ID="25eb8d72-bb19-4884-b8b3-0d83f4c806cf"
+GET by ID:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/facilitators/$FACILITAOR_ID
 
-curl -i http://localhost:4000/v1/facilitators/$FACILITATOR_ID
+Update:
+curl -i -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"notes": "Lead instructor for driving courses."}' \
+http://localhost:4000/v1/facilitators/$FACILITATOR_ID
 
-U P D A T E:
-UPDATE_BODY_FACILITATOR='{
-    "notes": "Lead instructor for driving courses."
-}'
+Delete:
+curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/facilitators/$FACILITATOR_ID
 
-curl -i -X PATCH -H "Content-Type: application/json" -d "$UPDATE_BODY_FACILITATOR" http://localhost:4000/v1/facilitators/$FACILITATOR_ID
+---------------------------------------------------------------------------------------------------
 
-D E L E T E:
-curl -i -X DELETE http://localhost:4000/v1/facilitators/$FACILITATOR_ID
+SESSION ENDPOINTS
+------------------
+Phase 5: Testing Session Endpoints
+1. Create Session (POST)
+Sessions depend on a course, so make sure you have a COURSE_ID from the previous step.
 
-L I S T  A L L   F A C I L I T A T O R:
-curl -i http://localhost:4000/v1/facilitators
+curl -i -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"course_id": "'$COURSE_ID'", "start_datetime": "2025-11-10T09:00:00Z", "end_datetime": "2025-11-14T17:00:00Z", "location_text": "Training Room 1"}' \
+http://localhost:4000/v1/sessions
+  
+export SESSION_ID="<the-session-id-you-just-copied>"
+
+2. Get, Update, Delete Sessions...
+You can follow the exact same pattern as above for Get All, Get One, Update, and Delete for sessions, using the `$SESSION_ID`.
+
+GET all:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/sessions
+
+Get by ID:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/sessions/$SESSION_ID
+
+Update:
+curl -i -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+-d '{"location_text": "conference room 2"}' \
+http://localhost:4000/v1/sessions/$SESSION_ID
+
+Delete:
+curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/sessions/$SESSION_ID
+
+**WRAP HANDLERS THAT NEED PROTECTION.**
+eg. Create, get, update, delete, list handlers (try for officers first)
+
+After you do this, if you try to run any of the curl commands from above without the -H "Authorization: Bearer $TOKEN" header, you will correctly receive a 401 Unauthorized error.
