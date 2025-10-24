@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amari03/test1/internal/validator" // Make sure to use your actual module path
+	"github.com/amari03/test1/internal/validator" 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
