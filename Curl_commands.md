@@ -55,7 +55,11 @@ curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers/$OFF
 
 ## Step 4: Update Officer (PATCH)
 ```Bash
-curl -i -X PATCH -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" −d′"rankcode":"CPL"′ http://localhost:4000/v1/officers/TOKEN" −d′"rankc​ode":"CPL"′ http://localhost:4000/v1/officers/OFFICER_ID
+curl -i -X PATCH \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $TOKEN" \
+-d '{"rank_code": "SGT"}' \
+http://localhost:4000/v1/officers/$OFFICER_ID
 ```
 
 ## Step 5: Delete Officer (DELETE)

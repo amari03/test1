@@ -45,11 +45,11 @@ func (m OfficerModel) Insert(officer *Officer) error {
 	query := `
         INSERT INTO officers (regulation_number, first_name, last_name, sex, rank_code)
         VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, created_at`
+        RETURNING id, created_at, version`
 
 	args := []interface{}{officer.RegulationNumber, &officer.FirstName, &officer.LastName, &officer.Sex, &officer.RankCode}
 
-	return m.DB.QueryRow(query, args...).Scan(&officer.ID, &officer.CreatedAt)
+	return m.DB.QueryRow(query, args...).Scan(&officer.ID, &officer.CreatedAt, &officer.Version)
 }
 
 // Get a specific officer by ID.
