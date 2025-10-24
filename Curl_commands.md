@@ -53,6 +53,12 @@ curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers
 curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/officers/$OFFICER_ID
 ```
 
+## Pagination
+```Bash
+curl -i -H "Authorization: Bearer $TOKEN" "http://localhost:4000/v1/officers?page=1&page_size=2"
+curl -i -H "Authorization: Bearer $TOKEN" "http://localhost:4000/v1/officers?content=PC"
+```
+
 ## Step 4: Update Officer (PATCH)
 ```Bash
 curl -i -X PATCH \
@@ -73,7 +79,7 @@ curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/off
 ## Step 1: Create Course (POST)
 ```Bash
 curl -i -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
--d '{"title": "Defensive Driving", "category": "elective", "default_credit_hours": 25.0, "description": "Advanced techniques for vehicle control"}' \
+-d '{"title": "Advanced Interview and Interrogation", "category": "elective", "default_credit_hours": 40.0, "description": "Techniques for ethical and effective information gathering from victims, witnesses, and suspects."}' \
 http://localhost:4000/v1/courses
 ```
 ```Bash
@@ -88,6 +94,11 @@ curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/courses
 ## Step 3: Get One Course (GET by ID)
 ```Bash
 curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/courses/$COURSE_ID
+```
+
+## Pagination
+```Bash
+curl -i -H "Authorization: Bearer $TOKEN" "http://localhost:4000/v1/courses?page=1&page_size=2"
 ```
 
 ## Step 4: Update Course (PATCH)
@@ -126,6 +137,11 @@ curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/facilitators
 2. GET by ID:
 ```Bash
 curl -i -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/facilitators/$FACILITAOR_ID
+```
+
+## Pagination
+```Bash
+curl -i -H "Authorization: Bearer $TOKEN" "http://localhost:4000/v1/facilitators?page=1&page_size=2"
 ```
 
 3. Update:
@@ -180,7 +196,6 @@ curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:4000/v1/ses
 ```
 
 **WRAP HANDLERS THAT NEED PROTECTION.**  
-eg. Create, get, update, delete, list handlers (try for officers first)
 
 After you do this, if you try to run any of the curl commands from above without the `-H "Authorization: Bearer $TOKEN"` header, you will correctly receive a 401 Unauthorized error.
 
@@ -188,4 +203,9 @@ After you do this, if you try to run any of the curl commands from above without
 
 ```Bash
 curl -i -X POST -H "Content-Type: application/json" -d '{"regulation_number": "PC800", "first_name": "Jonathan", "last_name": "Doe", "sex": "male", "rank_code": "PC"}' http://localhost:4000/v1/officers
+```
+
+**UNIT TESTS**
+```Bash
+go test -v ./internal/data/...
 ```
